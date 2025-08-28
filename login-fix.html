@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إصلاح تسجيل الدخول - نظام المحاسبة</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            direction: rtl;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+            width: 100%;
+        }
+        .btn:hover {
+            background: #5a6fd8;
+        }
+        .success {
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+        .error {
+            background: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+        .info {
+            background: #2196F3;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .login-test {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            direction: ltr;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 إصلاح نظام تسجيل الدخول</h1>
+        
+        <div class="info">
+            <strong>هذه الصفحة لإصلاح مشاكل تسجيل الدخول</strong><br>
+            استخدم الأزرار أدناه لحل المشكلة
+        </div>
+
+        <div id="successMsg" class="success"></div>
+        <div id="errorMsg" class="error"></div>
+
+        <button class="btn" onclick="clearAllData()">🗑️ مسح جميع البيانات وإعادة التعيين</button>
+        
+        <button class="btn" onclick="resetUsers()">👤 إعادة تعيين المستخدمين الافتراضيين</button>
+        
+        <button class="btn" onclick="checkCurrentData()">🔍 فحص البيانات الحالية</button>
+
+        <div class="login-test">
+            <h3>اختبار تسجيل الدخول:</h3>
+            <label for="testUsername">اسم المستخدم:</label>
+            <input type="text" id="testUsername" value="admin" placeholder="admin">
+            
+            <label for="testPassword">كلمة المرور:</label>
+            <input type="password" id="testPassword" value="admin123" placeholder="admin123">
+            
+            <button class="btn" onclick="testLogin()">🔐 اختبار تسجيل الدخول</button>
+        </div>
+
+        <button class="btn" onclick="goToMainSystem()" style="background: #4CAF50;">
+            ✅ الذهاب إلى النظام الرئيسي
+        </button>
+    </div>
+
+    <script>
+        function showMessage(message, type) {
+            const successMsg = document.getElementById('successMsg');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+            
+            if (type === 'success') {
+                successMsg.textContent = message;
+                successMsg.style.display = 'block';
+            } else {
+                errorMsg.textContent = message;
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        function clearAllData() {
+            try {
+                localStorage.clear();
+                showMessage('تم مسح جميع البيانات بنجاح!', 'success');
+                setTimeout(() => {
+                    resetUsers();
+                }, 1000);
+            } catch (error) {
+                showMessage('خطأ في مسح البيانات: ' + error.message, 'error');
+            }
+        }
+
+        function resetUsers() {
+            try {
+                // إنشاء المستخدمين الافتراضيين
+                const defaultUsers = [
+                    {
+                        id: 'admin-001',
+                        username: 'admin',
+                        password: hashPassword('admin123'),
+                        name: 'المدير العام',
+                        role: 'admin',
+                        permissions: ['all'],
+                        isActive: true,
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        id: 'manager-001',
+                        username: 'manager',
+                        password: hashPassword('manager123'),
+                        name: 'مدير القسم',
+                        role: 'manager',
+                        permissions: ['capital', 'expenses', 'reports', 'users'],
+                        isActive: true,
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        id: 'accountant-001',
+                        username: 'accountant',
+                        password: hashPassword('acc123'),
+                        name: 'المحاسب',
+                        role: 'accountant',
+                        permissions: ['capital', 'expenses', 'reports'],
+                        isActive: true,
+                        createdAt: new Date().toISOString()
+                    }
+                ];
+
+                // حفظ المستخدمين
+                const encryptedUsers = btoa(unescape(encodeURIComponent(JSON.stringify(defaultUsers))));
+                localStorage.setItem('accounting_users', encryptedUsers);
+                
+                // إنشاء بيانات فارغة أخرى
+                localStorage.setItem('accounting_capital', btoa(unescape(encodeURIComponent(JSON.stringify([])))));
+                localStorage.setItem('accounting_expenses', btoa(unescape(encodeURIComponent(JSON.stringify([])))));
+                localStorage.setItem('accounting_shareholders', btoa(unescape(encodeURIComponent(JSON.stringify([])))));
+                
+                showMessage('تم إعادة تعيين المستخدمين بنجاح!\nيمكنك الآن تسجيل الدخول بـ:\nadmin / admin123', 'success');
+            } catch (error) {
+                showMessage('خطأ في إعادة تعيين المستخدمين: ' + error.message, 'error');
+            }
+        }
+
+        function hashPassword(password) {
+            let hash = 0;
+            for (let i = 0; i < password.length; i++) {
+                const char = password.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return hash.toString();
+        }
+
+        function checkCurrentData() {
+            try {
+                const users = localStorage.getItem('accounting_users');
+                if (!users) {
+                    showMessage('لا توجد بيانات مستخدمين. اضغط "إعادة تعيين المستخدمين"', 'error');
+                    return;
+                }
+
+                const decryptedUsers = JSON.parse(decodeURIComponent(escape(atob(users))));
+                showMessage(`تم العثور على ${decryptedUsers.length} مستخدم في النظام`, 'success');
+                console.log('المستخدمون الحاليون:', decryptedUsers);
+            } catch (error) {
+                showMessage('خطأ في قراءة البيانات: ' + error.message, 'error');
+            }
+        }
+
+        function testLogin() {
+            const username = document.getElementById('testUsername').value;
+            const password = document.getElementById('testPassword').value;
+
+            try {
+                const users = localStorage.getItem('accounting_users');
+                if (!users) {
+                    showMessage('لا توجد بيانات مستخدمين. اضغط "إعادة تعيين المستخدمين" أولاً', 'error');
+                    return;
+                }
+
+                const decryptedUsers = JSON.parse(decodeURIComponent(escape(atob(users))));
+                const user = decryptedUsers.find(u => u.username === username);
+                
+                if (!user) {
+                    showMessage('اسم المستخدم غير موجود', 'error');
+                    return;
+                }
+
+                const hashedPassword = hashPassword(password);
+                if (user.password === hashedPassword) {
+                    showMessage('نجح تسجيل الدخول! ✅', 'success');
+                    
+                    // حفظ جلسة المستخدم
+                    const sessionUser = { ...user };
+                    delete sessionUser.password;
+                    localStorage.setItem('currentUser', JSON.stringify(sessionUser));
+                    localStorage.setItem('sessionStart', Date.now().toString());
+                } else {
+                    showMessage('كلمة المرور غير صحيحة', 'error');
+                }
+            } catch (error) {
+                showMessage('خطأ في اختبار تسجيل الدخول: ' + error.message, 'error');
+            }
+        }
+
+        function goToMainSystem() {
+            window.location.href = 'index.html';
+        }
+
+        // تشغيل تلقائي عند تحميل الصفحة
+        window.onload = function() {
+            checkCurrentData();
+        };
+    </script>
+</body>
+</html>

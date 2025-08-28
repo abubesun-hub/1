@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار تسجيل الدخول</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h3>اختبار تسجيل الدخول</h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- Login Form -->
+                        <form id="loginForm">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">اسم المستخدم</label>
+                                <input type="text" class="form-control" id="username" value="admin" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">كلمة المرور</label>
+                                <input type="password" class="form-control" id="password" value="admin123" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">تسجيل الدخول</button>
+                        </form>
+                        
+                        <hr>
+                        
+                        <!-- Test Buttons -->
+                        <div class="text-center">
+                            <button class="btn btn-success me-2" onclick="createUser()">إنشاء مستخدم</button>
+                            <button class="btn btn-info me-2" onclick="checkUsers()">فحص المستخدمين</button>
+                            <button class="btn btn-warning" onclick="clearUsers()">مسح المستخدمين</button>
+                        </div>
+                        
+                        <!-- Results -->
+                        <div class="mt-4">
+                            <div id="results" class="border p-3" style="height: 300px; overflow-y: auto; background: #f8f9fa; font-family: monospace; font-size: 12px;">
+                                <p>جاري التحميل...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <script>
+        function log(message) {
+            const results = document.getElementById('results');
+            const time = new Date().toLocaleTimeString('ar-IQ');
+            results.innerHTML += `<div>[${time}] ${message}</div>`;
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function createUser() {
+            log('🔧 إنشاء مستخدم جديد...');
+            
+            const users = [
+                {
+                    id: 'admin_user_' + Date.now(),
+                    username: 'admin',
+                    password: 'admin123', // كلمة مرور غير مشفرة
+                    name: 'المدير العام',
+                    role: 'admin',
+                    permissions: ['all'],
+                    isActive: true,
+                    createdAt: new Date().toISOString()
+                }
+            ];
+            
+            const saved = StorageManager.saveData(StorageManager.STORAGE_KEYS.USERS, users);
+            if (saved) {
+                log('✅ تم إنشاء المستخدم بنجاح');
+                log('👤 اسم المستخدم: admin');
+                log('🔑 كلمة المرور: admin123');
+            } else {
+                log('❌ فشل في إنشاء المستخدم');
+            }
+        }
+        
+        function checkUsers() {
+            log('🔍 فحص المستخدمين...');
+            
+            const users = StorageManager.getData(StorageManager.STORAGE_KEYS.USERS);
+            if (!users || users.length === 0) {
+                log('❌ لا يوجد مستخدمين في النظام');
+                return;
+            }
+            
+            log(`📊 عدد المستخدمين: ${users.length}`);
+            users.forEach((user, index) => {
+                log(`${index + 1}. ${user.username} - ${user.name} - ${user.isActive ? 'نشط' : 'غير نشط'}`);
+                log(`   كلمة المرور: ${user.password}`);
+            });
+        }
+        
+        function clearUsers() {
+            log('🗑️ مسح جميع المستخدمين...');
+            StorageManager.saveData(StorageManager.STORAGE_KEYS.USERS, []);
+            log('✅ تم مسح جميع المستخدمين');
+        }
+        
+        // Handle login form
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            log(`🔐 محاولة تسجيل الدخول: ${username} / ${password}`);
+            
+            try {
+                // Get users manually
+                const users = StorageManager.getData(StorageManager.STORAGE_KEYS.USERS) || [];
+                log(`📊 عدد المستخدمين في النظام: ${users.length}`);
+                
+                if (users.length === 0) {
+                    log('❌ لا يوجد مستخدمين - قم بإنشاء مستخدم أولاً');
+                    return;
+                }
+                
+                // Find user
+                const user = users.find(u => u.username === username);
+                if (!user) {
+                    log('❌ المستخدم غير موجود');
+                    return;
+                }
+                
+                log(`✅ تم العثور على المستخدم: ${user.name}`);
+                log(`🔑 كلمة المرور المحفوظة: ${user.password}`);
+                log(`🔑 كلمة المرور المدخلة: ${password}`);
+                
+                // Check password
+                if (user.password === password) {
+                    log('✅ كلمة المرور صحيحة!');
+                    log('🎉 تم تسجيل الدخول بنجاح!');
+                    
+                    // Redirect to main system
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 2000);
+                } else {
+                    log('❌ كلمة المرور غير صحيحة');
+                }
+                
+            } catch (error) {
+                log('❌ خطأ في تسجيل الدخول: ' + error.message);
+            }
+        });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            log('✅ تم تحميل صفحة اختبار تسجيل الدخول');
+            
+            if (typeof StorageManager !== 'undefined') {
+                log('✅ StorageManager متوفر');
+            } else {
+                log('❌ StorageManager غير متوفر');
+            }
+            
+            // Check existing users
+            setTimeout(() => {
+                checkUsers();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

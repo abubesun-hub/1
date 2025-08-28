@@ -307,6 +307,9 @@ class CapitalManager {
                             <button type="reset" class="btn btn-secondary neumorphic-btn ms-2">
                                 <i class="bi bi-arrow-clockwise me-2"></i>إعادة تعيين
                             </button>
+                            <button type="button" class="btn btn-success neumorphic-btn ms-2" id="printReceiptBtn" style="display: none;" onclick="capitalManager.printCapitalReceipt()">
+                                <i class="bi bi-printer me-2"></i>طباعة فاتورة الإيصال
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -611,10 +614,13 @@ class CapitalManager {
                                     <td>${this.formatDate(entry.date)}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" onclick="capitalManager.editCapitalEntry('${entry.id}')">
+                                            <button class="btn btn-outline-success" onclick="capitalManager.printExistingEntry('${entry.id}')" title="طباعة الإيصال">
+                                                <i class="bi bi-printer"></i>
+                                            </button>
+                                            <button class="btn btn-outline-primary" onclick="capitalManager.editCapitalEntry('${entry.id}')" title="تعديل">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
-                                            <button class="btn btn-outline-danger" onclick="capitalManager.deleteCapitalEntry('${entry.id}')">
+                                            <button class="btn btn-outline-danger" onclick="capitalManager.deleteCapitalEntry('${entry.id}')" title="حذف">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
@@ -785,6 +791,8 @@ class CapitalManager {
             // Update existing entry
             if (StorageManager.updateCapitalEntry(this.editingId, capitalData)) {
                 this.showNotification('تم تحديث الإدخال بنجاح', 'success');
+                this.lastSavedEntry = { ...capitalData, id: this.editingId };
+                this.showPrintButton();
                 this.editingId = null;
             } else {
                 this.showNotification('حدث خطأ أثناء تحديث الإدخال', 'error');
@@ -794,6 +802,8 @@ class CapitalManager {
             const newEntry = StorageManager.addCapitalEntry(capitalData);
             if (newEntry) {
                 this.showNotification('تم إضافة الإدخال بنجاح', 'success');
+                this.lastSavedEntry = newEntry;
+                this.showPrintButton();
             } else {
                 this.showNotification('حدث خطأ أثناء إضافة الإدخال', 'error');
             }
@@ -803,6 +813,18 @@ class CapitalManager {
         document.getElementById('capitalEntryForm').reset();
         document.getElementById('registrationNumber').value = StorageManager.generateRegistrationNumber();
         this.refreshCurrentView();
+    }
+
+    // Show print button after successful save
+    showPrintButton() {
+        const printBtn = document.getElementById('printReceiptBtn');
+        if (printBtn) {
+            printBtn.style.display = 'inline-block';
+            // Hide button after 30 seconds
+            setTimeout(() => {
+                printBtn.style.display = 'none';
+            }, 30000);
+        }
     }
 
     // Edit shareholder
@@ -950,10 +972,13 @@ class CapitalManager {
                                     <td>${entry.receiptNumber}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" onclick="capitalManager.editCapitalEntry('${entry.id}')">
+                                            <button class="btn btn-outline-success" onclick="capitalManager.printExistingEntry('${entry.id}')" title="طباعة الإيصال">
+                                                <i class="bi bi-printer"></i>
+                                            </button>
+                                            <button class="btn btn-outline-primary" onclick="capitalManager.editCapitalEntry('${entry.id}')" title="تعديل">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
-                                            <button class="btn btn-outline-info" onclick="capitalManager.viewCapitalEntry('${entry.id}')">
+                                            <button class="btn btn-outline-info" onclick="capitalManager.viewCapitalEntry('${entry.id}')" title="عرض التفاصيل">
                                                 <i class="bi bi-eye"></i>
                                             </button>
                                         </div>
@@ -1054,6 +1079,310 @@ class CapitalManager {
     // Refresh current view
     refreshCurrentView() {
         this.showView(this.currentView);
+    }
+
+    // Print capital receipt
+    printCapitalReceipt() {
+        if (!this.lastSavedEntry) {
+            this.showNotification('لا يوجد إدخال للطباعة', 'error');
+            return;
+        }
+
+        const shareholders = StorageManager.getData(StorageManager.STORAGE_KEYS.SHAREHOLDERS) || [];
+        const shareholder = shareholders.find(s => s.id === this.lastSavedEntry.shareholderId);
+
+        const receiptHTML = this.generateReceiptHTML(this.lastSavedEntry, shareholder);
+
+        // Create print window
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        printWindow.document.write(receiptHTML);
+        printWindow.document.close();
+
+        // Wait for content to load then print
+        printWindow.onload = function() {
+            printWindow.print();
+        };
+    }
+
+    // Print existing entry
+    printExistingEntry(entryId) {
+        const capital = StorageManager.getData(StorageManager.STORAGE_KEYS.CAPITAL) || [];
+        const entry = capital.find(c => c.id === entryId);
+
+        if (!entry) {
+            this.showNotification('الإدخال غير موجود', 'error');
+            return;
+        }
+
+        const shareholders = StorageManager.getData(StorageManager.STORAGE_KEYS.SHAREHOLDERS) || [];
+        const shareholder = shareholders.find(s => s.id === entry.shareholderId);
+
+        const receiptHTML = this.generateReceiptHTML(entry, shareholder);
+
+        // Create print window
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        printWindow.document.write(receiptHTML);
+        printWindow.document.close();
+
+        // Wait for content to load then print
+        printWindow.onload = function() {
+            printWindow.print();
+        };
+    }
+
+    // Generate receipt HTML
+    generateReceiptHTML(entry, shareholder) {
+        const currentDate = new Date().toLocaleDateString('ar-IQ');
+        const currentTime = new Date().toLocaleTimeString('ar-IQ');
+
+        return `
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>إيصال إدخال رأس المال - ${entry.registrationNumber}</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    background: white;
+                    color: #333;
+                    direction: rtl;
+                    line-height: 1.6;
+                }
+                .receipt-container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    border: 2px solid #333;
+                    padding: 30px;
+                    background: white;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 3px double #333;
+                    padding-bottom: 20px;
+                    margin-bottom: 30px;
+                }
+                .company-name {
+                    font-size: 28px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    margin-bottom: 10px;
+                }
+                .receipt-title {
+                    font-size: 24px;
+                    color: #e74c3c;
+                    font-weight: bold;
+                    margin-bottom: 10px;
+                }
+                .receipt-number {
+                    font-size: 18px;
+                    color: #7f8c8d;
+                }
+                .receipt-body {
+                    margin: 30px 0;
+                }
+                .info-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 15px;
+                    padding: 10px;
+                    background: #f8f9fa;
+                    border-radius: 5px;
+                }
+                .info-label {
+                    font-weight: bold;
+                    color: #2c3e50;
+                    min-width: 150px;
+                }
+                .info-value {
+                    color: #34495e;
+                    flex: 1;
+                    text-align: left;
+                }
+                .amount-section {
+                    background: #e8f5e8;
+                    border: 2px solid #27ae60;
+                    border-radius: 10px;
+                    padding: 20px;
+                    margin: 30px 0;
+                    text-align: center;
+                }
+                .amount-label {
+                    font-size: 18px;
+                    color: #27ae60;
+                    font-weight: bold;
+                    margin-bottom: 10px;
+                }
+                .amount-value {
+                    font-size: 32px;
+                    color: #27ae60;
+                    font-weight: bold;
+                }
+                .amount-words {
+                    font-size: 16px;
+                    color: #2c3e50;
+                    margin-top: 10px;
+                    font-style: italic;
+                }
+                .footer {
+                    border-top: 2px solid #333;
+                    padding-top: 20px;
+                    margin-top: 40px;
+                }
+                .signatures {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 50px;
+                }
+                .signature-box {
+                    text-align: center;
+                    width: 200px;
+                }
+                .signature-line {
+                    border-bottom: 2px solid #333;
+                    height: 50px;
+                    margin-bottom: 10px;
+                }
+                .signature-label {
+                    font-weight: bold;
+                    color: #2c3e50;
+                }
+                .print-info {
+                    text-align: center;
+                    color: #7f8c8d;
+                    font-size: 12px;
+                    margin-top: 30px;
+                    border-top: 1px solid #ddd;
+                    padding-top: 15px;
+                }
+                @media print {
+                    body {
+                        margin: 0;
+                        padding: 10px;
+                    }
+                    .receipt-container {
+                        border: 2px solid #000;
+                        box-shadow: none;
+                    }
+                    .print-info {
+                        display: none;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="receipt-container">
+                <!-- Header -->
+                <div class="header">
+                    <div class="company-name">شركة المقاولات المتقدمة</div>
+                    <div class="receipt-title">إيصال إدخال رأس المال</div>
+                    <div class="receipt-number">رقم الإيصال: ${entry.registrationNumber}</div>
+                </div>
+
+                <!-- Receipt Body -->
+                <div class="receipt-body">
+                    <div class="info-row">
+                        <span class="info-label">اسم المساهم:</span>
+                        <span class="info-value">${shareholder ? shareholder.name : 'غير محدد'}</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">منصب المساهم:</span>
+                        <span class="info-value">${shareholder ? shareholder.position : 'غير محدد'}</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">رقم الهاتف:</span>
+                        <span class="info-value">${shareholder ? shareholder.phone : 'غير محدد'}</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">تاريخ الإيداع:</span>
+                        <span class="info-value">${this.formatDate(entry.date)}</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">رقم السند/الإيصال:</span>
+                        <span class="info-value">${entry.receiptNumber}</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">نوع العملة:</span>
+                        <span class="info-value">${entry.currency === 'USD' ? 'دولار أمريكي (USD)' : 'دينار عراقي (IQD)'}</span>
+                    </div>
+
+                    <!-- Amount Section -->
+                    <div class="amount-section">
+                        <div class="amount-label">المبلغ المودع</div>
+                        <div class="amount-value">${this.formatCurrency(entry.amount, entry.currency)}</div>
+                        <div class="amount-words">${this.numberToWords(entry.amount, entry.currency)}</div>
+                    </div>
+
+                    ${entry.notes ? `
+                    <div class="info-row">
+                        <span class="info-label">ملاحظات:</span>
+                        <span class="info-value">${entry.notes}</span>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <!-- Footer -->
+                <div class="footer">
+                    <div class="info-row">
+                        <span class="info-label">تاريخ الطباعة:</span>
+                        <span class="info-value">${currentDate} - ${currentTime}</span>
+                    </div>
+
+                    <div class="signatures">
+                        <div class="signature-box">
+                            <div class="signature-line"></div>
+                            <div class="signature-label">توقيع المساهم</div>
+                        </div>
+
+                        <div class="signature-box">
+                            <div class="signature-line"></div>
+                            <div class="signature-label">توقيع المحاسب</div>
+                        </div>
+
+                        <div class="signature-box">
+                            <div class="signature-line"></div>
+                            <div class="signature-label">توقيع المدير</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="print-info">
+                    تم إنشاء هذا الإيصال بواسطة نظام المحاسبة الإلكتروني<br>
+                    للاستفسارات يرجى الاتصال بقسم المحاسبة
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+    }
+
+    // Convert number to words (simplified Arabic)
+    numberToWords(amount, currency) {
+        const num = parseFloat(amount);
+        if (isNaN(num)) return '';
+
+        // This is a simplified version - you can enhance it for full Arabic number conversion
+        const currencyName = currency === 'USD' ? 'دولار أمريكي' : 'دينار عراقي';
+
+        if (num < 1000) {
+            return `${num} ${currencyName}`;
+        } else if (num < 1000000) {
+            const thousands = Math.floor(num / 1000);
+            const remainder = num % 1000;
+            return `${thousands} ألف${remainder > 0 ? ' و ' + remainder : ''} ${currencyName}`;
+        } else {
+            const millions = Math.floor(num / 1000000);
+            const remainder = num % 1000000;
+            return `${millions} مليون${remainder > 0 ? ' و ' + Math.floor(remainder / 1000) + ' ألف' : ''} ${currencyName}`;
+        }
     }
 
     // Show notification

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار الدليل المحاسبي</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>اختبار الدليل المحاسبي</h1>
+        
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <button class="btn btn-primary" onclick="testStorage()">اختبار التخزين</button>
+                <button class="btn btn-success" onclick="testAccountingGuide()">اختبار الدليل المحاسبي</button>
+                <button class="btn btn-info" onclick="initializeGuide()">تهيئة الدليل</button>
+                <button class="btn btn-warning" onclick="showGuideData()">عرض بيانات الدليل</button>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div id="output" class="border p-3" style="height: 400px; overflow-y: auto; background: #f8f9fa;">
+                    <p>اضغط على الأزرار أعلاه لاختبار النظام...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/expenses.js"></script>
+    
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            const time = new Date().toLocaleTimeString('ar-IQ');
+            output.innerHTML += `<div>[${time}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function initializeGuide() {
+            log('بدء تهيئة الدليل المحاسبي...');
+            
+            if (typeof expensesManager !== 'undefined' && expensesManager) {
+                expensesManager.initializeDefaultAccountingGuide();
+                log('تم استدعاء دالة التهيئة');
+            } else {
+                log('خطأ: expensesManager غير متوفر');
+            }
+        }
+        
+        function showGuideData() {
+            log('عرض بيانات الدليل المحاسبي...');
+            
+            const guide = StorageManager.getData(StorageManager.STORAGE_KEYS.ACCOUNTING_GUIDE);
+            log(`عدد عناصر الدليل: ${guide ? guide.length : 0}`);
+            
+            if (guide && guide.length > 0) {
+                guide.forEach((item, index) => {
+                    log(`${index + 1}. ${item.code} - ${item.name} (${item.category})`);
+                });
+            } else {
+                log('لا توجد بيانات في الدليل المحاسبي');
+            }
+        }
+        
+        // Override console.log to show in our output
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            log(args.join(' '));
+        };
+        
+        const originalError = console.error;
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            log(`<span class="text-danger">خطأ: ${args.join(' ')}</span>`);
+        };
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            log('تم تحميل الصفحة');
+            log('جاري تهيئة النظام...');
+            
+            setTimeout(() => {
+                if (typeof StorageManager !== 'undefined') {
+                    log('StorageManager متوفر');
+                } else {
+                    log('خطأ: StorageManager غير متوفر');
+                }
+                
+                if (typeof expensesManager !== 'undefined') {
+                    log('expensesManager متوفر');
+                } else {
+                    log('خطأ: expensesManager غير متوفر');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

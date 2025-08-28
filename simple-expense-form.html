@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نموذج إضافة المصروف المطور</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .neumorphic-card {
+            background: #f0f0f3;
+            border-radius: 20px;
+            box-shadow: 9px 9px 16px #a3a3a3, -9px -9px 16px #ffffff;
+            border: none;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .neumorphic-input {
+            background: #f0f0f3;
+            border: none;
+            border-radius: 10px;
+            box-shadow: inset 6px 6px 10px #a3a3a3, inset -6px -6px 10px #ffffff;
+            padding: 12px 15px;
+        }
+        .neumorphic-btn {
+            background: #f0f0f3;
+            border: none;
+            border-radius: 10px;
+            box-shadow: 6px 6px 10px #a3a3a3, -6px -6px 10px #ffffff;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+        .neumorphic-btn:hover {
+            box-shadow: 3px 3px 6px #a3a3a3, -3px -3px 6px #ffffff;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 15px 20px;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+                background: white !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-area {
+                display: block !important;
+                position: static !important;
+                width: 100% !important;
+                background: white !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+                padding: 20px !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-header {
+                text-align: center;
+                border-bottom: 2px solid #333;
+                padding-bottom: 20px;
+                margin-bottom: 30px;
+            }
+            .print-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 20px 0;
+            }
+            .print-table th, .print-table td {
+                border: 1px solid #333;
+                padding: 8px;
+                text-align: right;
+            }
+            .print-table th {
+                background-color: #f5f5f5;
+                font-weight: bold;
+            }
+            .print-footer {
+                margin-top: 40px;
+                border-top: 1px solid #333;
+                padding-top: 20px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body style="background: #f0f0f3;">
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="neumorphic-card">
+                    <div class="card-header">
+                        <h4><i class="bi bi-plus-circle me-2"></i>إضافة مصروف جديد - النموذج المطور</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="expenseForm" class="row">
+                            <!-- رقم القيد والتاريخ -->
+                            <div class="col-md-6 mb-3">
+                                <label for="expenseRegistrationNumber" class="form-label">
+                                    <i class="bi bi-hash me-1"></i>رقم القيد
+                                </label>
+                                <input type="text" class="form-control neumorphic-input" id="expenseRegistrationNumber"
+                                       value="" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="expenseDate" class="form-label">
+                                    <i class="bi bi-calendar me-1"></i>التاريخ
+                                </label>
+                                <input type="date" class="form-control neumorphic-input" id="expenseDate" 
+                                       value="${new Date().toISOString().split('T')[0]}" required>
+                            </div>
+
+                            <!-- المبالغ وسعر الصرف -->
+                            <div class="col-md-4 mb-3">
+                                <label for="expenseAmountIQD" class="form-label">
+                                    <i class="bi bi-cash me-1"></i>المبلغ بالدينار
+                                </label>
+                                <input type="number" class="form-control neumorphic-input" id="expenseAmountIQD" 
+                                       step="1" min="0" placeholder="0" onchange="calculateCurrency('IQD')">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="expenseAmountUSD" class="form-label">
+                                    <i class="bi bi-currency-dollar me-1"></i>المبلغ بالدولار
+                                </label>
+                                <input type="number" class="form-control neumorphic-input" id="expenseAmountUSD" 
+                                       step="0.01" min="0" placeholder="0.00" onchange="calculateCurrency('USD')">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="expenseExchangeRate" class="form-label">
+                                    <i class="bi bi-arrow-left-right me-1"></i>سعر الصرف
+                                </label>
+                                <input type="number" class="form-control neumorphic-input" id="expenseExchangeRate" 
+                                       step="0.01" min="0" value="1500" placeholder="1500" onchange="calculateCurrency()">
+                            </div>
+
+                            <!-- البيان والدليل المحاسبي -->
+                            <div class="col-md-6 mb-3">
+                                <label for="expenseDescription" class="form-label">
+                                    <i class="bi bi-file-text me-1"></i>البيان
+                                </label>
+                                <input type="text" class="form-control neumorphic-input" id="expenseDescription" 
+                                       placeholder="بيان المصروف..." required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="expenseAccountingGuide" class="form-label">
+                                    <i class="bi bi-book me-1"></i>الدليل المحاسبي
+                                </label>
+                                <select class="form-control neumorphic-input" id="expenseAccountingGuide" required>
+                                    <option value="">اختر من الدليل المحاسبي</option>
+                                    <optgroup label="مواد البناء">
+                                        <option value="guide001" data-code="5101" data-name="الأسمنت">5101 - الأسمنت</option>
+                                        <option value="guide002" data-code="5102" data-name="الحديد والصلب">5102 - الحديد والصلب</option>
+                                        <option value="guide003" data-code="5103" data-name="الرمل والحصى">5103 - الرمل والحصى</option>
+                                    </optgroup>
+                                    <optgroup label="العمالة">
+                                        <option value="guide006" data-code="5201" data-name="أجور العمال المهرة">5201 - أجور العمال المهرة</option>
+                                        <option value="guide007" data-code="5202" data-name="أجور العمال العاديين">5202 - أجور العمال العاديين</option>
+                                    </optgroup>
+                                    <optgroup label="المعدات والآلات">
+                                        <option value="guide009" data-code="5301" data-name="إيجار المعدات الثقيلة">5301 - إيجار المعدات الثقيلة</option>
+                                        <option value="guide010" data-code="5302" data-name="صيانة المعدات">5302 - صيانة المعدات</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            <!-- المستفيد ومعلومات الوصل -->
+                            <div class="col-md-4 mb-3">
+                                <label for="expenseBeneficiary" class="form-label">
+                                    <i class="bi bi-person me-1"></i>المستفيد
+                                </label>
+                                <input type="text" class="form-control neumorphic-input" id="expenseBeneficiary" 
+                                       placeholder="اسم المستفيد...">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="expenseReceiptNumber" class="form-label">
+                                    <i class="bi bi-receipt me-1"></i>رقم الوصل
+                                </label>
+                                <input type="text" class="form-control neumorphic-input" id="expenseReceiptNumber" 
+                                       placeholder="رقم الوصل...">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="expenseReceiptDate" class="form-label">
+                                    <i class="bi bi-calendar-check me-1"></i>تاريخ الوصل
+                                </label>
+                                <input type="date" class="form-control neumorphic-input" id="expenseReceiptDate">
+                            </div>
+
+                            <!-- معلومات إضافية -->
+                            <div class="col-md-6 mb-3">
+                                <label for="expenseVendor" class="form-label">
+                                    <i class="bi bi-building me-1"></i>المورد/الجهة
+                                </label>
+                                <input type="text" class="form-control neumorphic-input" id="expenseVendor" 
+                                       placeholder="اسم المورد أو الجهة...">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="expensePaymentMethod" class="form-label">
+                                    <i class="bi bi-credit-card me-1"></i>طريقة الدفع
+                                </label>
+                                <select class="form-control neumorphic-input" id="expensePaymentMethod">
+                                    <option value="">اختر طريقة الدفع</option>
+                                    <option value="cash">نقداً</option>
+                                    <option value="bank_transfer">تحويل بنكي</option>
+                                    <option value="check">شيك</option>
+                                    <option value="credit_card">بطاقة ائتمان</option>
+                                    <option value="electronic_payment">دفع إلكتروني</option>
+                                </select>
+                            </div>
+
+                            <!-- الفئة والمشروع -->
+                            <div class="col-md-6 mb-3">
+                                <label for="expenseCategory" class="form-label">
+                                    <i class="bi bi-tags me-1"></i>فئة المصروف
+                                </label>
+                                <select class="form-control neumorphic-input" id="expenseCategory" required>
+                                    <option value="">اختر الفئة</option>
+                                    <option value="مواد البناء">مواد البناء</option>
+                                    <option value="العمالة">العمالة</option>
+                                    <option value="المعدات والآلات">المعدات والآلات</option>
+                                    <option value="النقل والمواصلات">النقل والمواصلات</option>
+                                    <option value="الوقود والطاقة">الوقود والطاقة</option>
+                                    <option value="الرواتب والأجور">الرواتب والأجور</option>
+                                    <option value="المكتب والإدارة">المكتب والإدارة</option>
+                                    <option value="أخرى">أخرى</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="expenseProject" class="form-label">
+                                    <i class="bi bi-diagram-3 me-1"></i>المشروع
+                                </label>
+                                <select class="form-control neumorphic-input" id="expenseProject">
+                                    <option value="">اختر المشروع</option>
+                                    <option value="مشروع 1">مشروع البناء الرئيسي</option>
+                                    <option value="مشروع 2">مشروع التوسعة</option>
+                                    <option value="مشروع 3">مشروع الصيانة</option>
+                                    <option value="عام">مصروف عام</option>
+                                </select>
+                            </div>
+
+                            <!-- الملاحظات -->
+                            <div class="col-12 mb-3">
+                                <label for="expenseNotes" class="form-label">
+                                    <i class="bi bi-chat-text me-1"></i>الملاحظات
+                                </label>
+                                <textarea class="form-control neumorphic-input" id="expenseNotes" rows="3" 
+                                          placeholder="ملاحظات إضافية حول المصروف..."></textarea>
+                            </div>
+
+                            <!-- أزرار التحكم -->
+                            <div class="col-12">
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-primary neumorphic-btn" onclick="saveExpense()">
+                                        <i class="bi bi-save me-2"></i>حفظ المصروف
+                                    </button>
+                                    <button type="reset" class="btn btn-secondary neumorphic-btn">
+                                        <i class="bi bi-arrow-clockwise me-2"></i>إعادة تعيين
+                                    </button>
+                                    <button type="button" class="btn btn-info neumorphic-btn" onclick="previewExpense()">
+                                        <i class="bi bi-eye me-2"></i>معاينة
+                                    </button>
+                                    <button type="button" class="btn btn-warning neumorphic-btn" onclick="printInvoiceSimple()">
+                                        <i class="bi bi-printer me-2"></i>طباعة الفاتورة
+                                    </button>
+                                    <button type="button" class="btn btn-success neumorphic-btn" onclick="fillTestData()">
+                                        <i class="bi bi-clipboard-data me-2"></i>بيانات تجريبية
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- معاينة المصروف -->
+                <div id="expensePreview" class="neumorphic-card" style="display: none;">
+                    <div class="card-header">
+                        <h5><i class="bi bi-eye me-2"></i>معاينة المصروف</h5>
+                    </div>
+                    <div class="card-body" id="expensePreviewContent">
+                        <!-- Preview content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- منطقة الطباعة المخفية -->
+    <div id="printArea" class="print-area" style="display: none;">
+        <!-- Print content will be generated here -->
+    </div>
+
+    <script>
+        // Generate registration number
+        function generateRegistrationNumber() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const time = String(now.getTime()).slice(-6); // Last 6 digits of timestamp
+            return `EXP-${year}${month}${day}-${time}`;
+        }
+
+        // Initialize form
+        function initializeForm() {
+            // Set current date
+            document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+
+            // Set registration number
+            document.getElementById('expenseRegistrationNumber').value = generateRegistrationNumber();
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializeForm);
+        
+        // Calculate currency conversion
+        function calculateCurrency(changedCurrency = null) {
+            const amountIQD = parseFloat(document.getElementById('expenseAmountIQD').value) || 0;
+            const amountUSD = parseFloat(document.getElementById('expenseAmountUSD').value) || 0;
+            const exchangeRate = parseFloat(document.getElementById('expenseExchangeRate').value) || 1500;
+            
+            if (changedCurrency === 'IQD' && amountIQD > 0) {
+                // Convert IQD to USD
+                const usdAmount = amountIQD / exchangeRate;
+                document.getElementById('expenseAmountUSD').value = usdAmount.toFixed(2);
+            } else if (changedCurrency === 'USD' && amountUSD > 0) {
+                // Convert USD to IQD
+                const iqdAmount = amountUSD * exchangeRate;
+                document.getElementById('expenseAmountIQD').value = Math.round(iqdAmount);
+            } else if (!changedCurrency) {
+                // Exchange rate changed, recalculate based on USD
+                if (amountUSD > 0) {
+                    const iqdAmount = amountUSD * exchangeRate;
+                    document.getElementById('expenseAmountIQD').value = Math.round(iqdAmount);
+                }
+            }
+        }
+        
+        // Fill test data
+        function fillTestData() {
+            // Keep current registration number and date
+            const currentRegNumber = document.getElementById('expenseRegistrationNumber').value;
+            const currentDate = document.getElementById('expenseDate').value;
+
+            document.getElementById('expenseAmountIQD').value = '150000';
+            document.getElementById('expenseAmountUSD').value = '100';
+            document.getElementById('expenseDescription').value = 'شراء مواد بناء للمشروع';
+            document.getElementById('expenseAccountingGuide').value = 'guide001';
+            document.getElementById('expenseBeneficiary').value = 'شركة مواد البناء المحدودة';
+            document.getElementById('expenseReceiptNumber').value = 'REC-2024-001';
+            document.getElementById('expenseReceiptDate').value = currentDate;
+            document.getElementById('expenseVendor').value = 'مؤسسة الإعمار للمواد';
+            document.getElementById('expensePaymentMethod').value = 'cash';
+            document.getElementById('expenseCategory').value = 'مواد البناء';
+            document.getElementById('expenseProject').value = 'مشروع 1';
+            document.getElementById('expenseNotes').value = 'مصروف ضروري للمشروع الرئيسي';
+
+            // Restore registration number and date
+            document.getElementById('expenseRegistrationNumber').value = currentRegNumber;
+            document.getElementById('expenseDate').value = currentDate;
+
+            alert('تم ملء النموذج ببيانات تجريبية');
+        }
+        
+        // Preview expense
+        function previewExpense() {
+            const formData = getFormData();
+            if (!formData) return;
+            
+            const previewContent = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr><td><strong>رقم القيد:</strong></td><td>${formData.registrationNumber}</td></tr>
+                            <tr><td><strong>التاريخ:</strong></td><td>${formData.date}</td></tr>
+                            <tr><td><strong>البيان:</strong></td><td>${formData.description}</td></tr>
+                            <tr><td><strong>المستفيد:</strong></td><td>${formData.beneficiary || 'غير محدد'}</td></tr>
+                            <tr><td><strong>المورد:</strong></td><td>${formData.vendor || 'غير محدد'}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr><td><strong>المبلغ بالدينار:</strong></td><td>${formData.amountIQD.toLocaleString()} د.ع</td></tr>
+                            <tr><td><strong>المبلغ بالدولار:</strong></td><td>$${formData.amountUSD.toFixed(2)}</td></tr>
+                            <tr><td><strong>سعر الصرف:</strong></td><td>${formData.exchangeRate}</td></tr>
+                            <tr><td><strong>رقم الوصل:</strong></td><td>${formData.receiptNumber || 'غير محدد'}</td></tr>
+                            <tr><td><strong>طريقة الدفع:</strong></td><td>${getPaymentMethodText(formData.paymentMethod)}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                ${formData.notes ? `<div class="mt-3"><strong>الملاحظات:</strong><br>${formData.notes}</div>` : ''}
+            `;
+            
+            document.getElementById('expensePreviewContent').innerHTML = previewContent;
+            document.getElementById('expensePreview').style.display = 'block';
+            
+            // Scroll to preview
+            document.getElementById('expensePreview').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Get form data
+        function getFormData() {
+            const registrationNumber = document.getElementById('expenseRegistrationNumber').value;
+            const date = document.getElementById('expenseDate').value;
+            const amountIQD = parseFloat(document.getElementById('expenseAmountIQD').value) || 0;
+            const amountUSD = parseFloat(document.getElementById('expenseAmountUSD').value) || 0;
+            const exchangeRate = parseFloat(document.getElementById('expenseExchangeRate').value) || 1500;
+            const description = document.getElementById('expenseDescription').value;
+            const accountingGuide = document.getElementById('expenseAccountingGuide').value;
+            const beneficiary = document.getElementById('expenseBeneficiary').value;
+            const receiptNumber = document.getElementById('expenseReceiptNumber').value;
+            const receiptDate = document.getElementById('expenseReceiptDate').value;
+            const vendor = document.getElementById('expenseVendor').value;
+            const paymentMethod = document.getElementById('expensePaymentMethod').value;
+            const category = document.getElementById('expenseCategory').value;
+            const project = document.getElementById('expenseProject').value;
+            const notes = document.getElementById('expenseNotes').value;
+            
+            // Validation
+            if (!registrationNumber || !date || !description || !accountingGuide || !category) {
+                alert('يرجى ملء جميع الحقول المطلوبة');
+                return null;
+            }
+            
+            if (amountIQD === 0 && amountUSD === 0) {
+                alert('يرجى إدخال مبلغ المصروف');
+                return null;
+            }
+            
+            return {
+                registrationNumber, date, amountIQD, amountUSD, exchangeRate,
+                description, accountingGuide, beneficiary, receiptNumber,
+                receiptDate, vendor, paymentMethod, category, project, notes
+            };
+        }
+        
+        // Get payment method text
+        function getPaymentMethodText(method) {
+            const methods = {
+                'cash': 'نقداً',
+                'bank_transfer': 'تحويل بنكي',
+                'check': 'شيك',
+                'credit_card': 'بطاقة ائتمان',
+                'electronic_payment': 'دفع إلكتروني'
+            };
+            return methods[method] || 'غير محدد';
+        }
+
+        // Print invoice function
+        function printInvoice() {
+            const formData = getFormData();
+            if (!formData) return;
+
+            // Get accounting guide details
+            const accountingSelect = document.getElementById('expenseAccountingGuide');
+            const selectedOption = accountingSelect.options[accountingSelect.selectedIndex];
+            const accountingCode = selectedOption.getAttribute('data-code') || '';
+            const accountingName = selectedOption.getAttribute('data-name') || selectedOption.text;
+
+            // Hide main content and show print area
+            document.querySelector('.container').classList.add('no-print');
+            document.getElementById('printArea').style.display = 'block';
+
+            // Generate print content
+            const printContent = `
+                <div class="print-header">
+                    <h1 style="margin: 0; color: #333;">فاتورة مصروف</h1>
+                    <h2 style="margin: 10px 0; color: #666;">نظام إدارة المصروفات</h2>
+                    <p style="margin: 5px 0; color: #888;">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
+                </div>
+
+                <div style="margin: 30px 0;">
+                    <table class="print-table">
+                        <tr>
+                            <th style="width: 25%;">رقم القيد</th>
+                            <td style="width: 25%; font-weight: bold; color: #2c5aa0;">${formData.registrationNumber}</td>
+                            <th style="width: 25%;">التاريخ</th>
+                            <td style="width: 25%;">${new Date(formData.date).toLocaleDateString('ar-EG')}</td>
+                        </tr>
+                        <tr>
+                            <th>البيان</th>
+                            <td colspan="3" style="font-weight: bold;">${formData.description}</td>
+                        </tr>
+                        <tr>
+                            <th>المبلغ بالدينار</th>
+                            <td style="font-weight: bold; color: #d63384;">${formData.amountIQD.toLocaleString()} د.ع</td>
+                            <th>المبلغ بالدولار</th>
+                            <td style="font-weight: bold; color: #198754;">$${formData.amountUSD.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <th>سعر الصرف</th>
+                            <td>${formData.exchangeRate}</td>
+                            <th>طريقة الدفع</th>
+                            <td>${getPaymentMethodText(formData.paymentMethod)}</td>
+                        </tr>
+                        <tr>
+                            <th>الدليل المحاسبي</th>
+                            <td colspan="3">${accountingCode} - ${accountingName}</td>
+                        </tr>
+                        <tr>
+                            <th>المستفيد</th>
+                            <td>${formData.beneficiary || 'غير محدد'}</td>
+                            <th>المورد/الجهة</th>
+                            <td>${formData.vendor || 'غير محدد'}</td>
+                        </tr>
+                        <tr>
+                            <th>رقم الوصل</th>
+                            <td>${formData.receiptNumber || 'غير محدد'}</td>
+                            <th>تاريخ الوصل</th>
+                            <td>${formData.receiptDate ? new Date(formData.receiptDate).toLocaleDateString('ar-EG') : 'غير محدد'}</td>
+                        </tr>
+                        <tr>
+                            <th>فئة المصروف</th>
+                            <td>${formData.category}</td>
+                            <th>المشروع</th>
+                            <td>${formData.project || 'غير محدد'}</td>
+                        </tr>
+                        ${formData.notes ? `
+                        <tr>
+                            <th>الملاحظات</th>
+                            <td colspan="3">${formData.notes}</td>
+                        </tr>
+                        ` : ''}
+                    </table>
+                </div>
+
+                <div class="print-footer">
+                    <div style="display: flex; justify-content: space-between; margin-top: 50px;">
+                        <div style="text-align: center; width: 30%;">
+                            <div style="border-top: 1px solid #333; padding-top: 10px;">
+                                <strong>المحاسب</strong>
+                            </div>
+                        </div>
+                        <div style="text-align: center; width: 30%;">
+                            <div style="border-top: 1px solid #333; padding-top: 10px;">
+                                <strong>المدير المالي</strong>
+                            </div>
+                        </div>
+                        <div style="text-align: center; width: 30%;">
+                            <div style="border-top: 1px solid #333; padding-top: 10px;">
+                                <strong>المدير العام</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 30px; font-size: 12px; color: #666;">
+                        <p>تم إنشاء هذه الفاتورة بواسطة نظام إدارة المصروفات - ${new Date().toLocaleString('ar-EG')}</p>
+                    </div>
+                </div>
+            `;
+
+            // Set print content
+            document.getElementById('printArea').innerHTML = printContent;
+
+            // Print
+            window.print();
+
+            // Restore view after print dialog closes
+            setTimeout(() => {
+                document.querySelector('.container').classList.remove('no-print');
+                document.getElementById('printArea').style.display = 'none';
+            }, 1000);
+        }
+
+        // Alternative simple print function
+        function printInvoiceSimple() {
+            const formData = getFormData();
+            if (!formData) return;
+
+            // Create new window for printing
+            const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+            // Get accounting guide details
+            const accountingSelect = document.getElementById('expenseAccountingGuide');
+            const selectedOption = accountingSelect.options[accountingSelect.selectedIndex];
+            const accountingCode = selectedOption.getAttribute('data-code') || '';
+            const accountingName = selectedOption.getAttribute('data-name') || selectedOption.text;
+
+            const printContent = `
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>فاتورة مصروف - ${formData.registrationNumber}</title>
+                <style>
+                    body {
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        margin: 20px;
+                        background: white;
+                        color: #333;
+                        line-height: 1.6;
+                    }
+                    .header {
+                        text-align: center;
+                        border-bottom: 3px solid #2c5aa0;
+                        padding-bottom: 20px;
+                        margin-bottom: 30px;
+                    }
+                    .header h1 {
+                        color: #2c5aa0;
+                        margin: 0;
+                        font-size: 28px;
+                    }
+                    .header h2 {
+                        color: #666;
+                        margin: 10px 0;
+                        font-size: 18px;
+                    }
+                    .info-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 20px 0;
+                        border: 2px solid #2c5aa0;
+                    }
+                    .info-table th, .info-table td {
+                        border: 1px solid #ddd;
+                        padding: 12px;
+                        text-align: right;
+                    }
+                    .info-table th {
+                        background-color: #f8f9fa;
+                        font-weight: bold;
+                        color: #2c5aa0;
+                        width: 25%;
+                    }
+                    .amount-cell {
+                        font-weight: bold;
+                        font-size: 16px;
+                    }
+                    .amount-iqd {
+                        color: #d63384;
+                    }
+                    .amount-usd {
+                        color: #198754;
+                    }
+                    .signatures {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-top: 60px;
+                    }
+                    .signature-box {
+                        text-align: center;
+                        width: 30%;
+                    }
+                    .signature-line {
+                        border-top: 2px solid #333;
+                        padding-top: 10px;
+                        margin-top: 40px;
+                        font-weight: bold;
+                    }
+                    .footer {
+                        margin-top: 40px;
+                        text-align: center;
+                        font-size: 12px;
+                        color: #666;
+                        border-top: 1px solid #ddd;
+                        padding-top: 20px;
+                    }
+                    @media print {
+                        body { margin: 0; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>فاتورة مصروف</h1>
+                    <h2>نظام إدارة المصروفات</h2>
+                    <p>تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
+                </div>
+
+                <table class="info-table">
+                    <tr>
+                        <th>رقم القيد</th>
+                        <td style="font-weight: bold; color: #2c5aa0; font-size: 16px;">${formData.registrationNumber}</td>
+                        <th>التاريخ</th>
+                        <td>${new Date(formData.date).toLocaleDateString('ar-EG')}</td>
+                    </tr>
+                    <tr>
+                        <th>البيان</th>
+                        <td colspan="3" style="font-weight: bold; font-size: 16px;">${formData.description}</td>
+                    </tr>
+                    <tr>
+                        <th>المبلغ بالدينار</th>
+                        <td class="amount-cell amount-iqd">${formData.amountIQD.toLocaleString()} د.ع</td>
+                        <th>المبلغ بالدولار</th>
+                        <td class="amount-cell amount-usd">$${formData.amountUSD.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <th>سعر الصرف</th>
+                        <td>${formData.exchangeRate}</td>
+                        <th>طريقة الدفع</th>
+                        <td>${getPaymentMethodText(formData.paymentMethod)}</td>
+                    </tr>
+                    <tr>
+                        <th>الدليل المحاسبي</th>
+                        <td colspan="3">${accountingCode} - ${accountingName}</td>
+                    </tr>
+                    <tr>
+                        <th>المستفيد</th>
+                        <td>${formData.beneficiary || 'غير محدد'}</td>
+                        <th>المورد/الجهة</th>
+                        <td>${formData.vendor || 'غير محدد'}</td>
+                    </tr>
+                    <tr>
+                        <th>رقم الوصل</th>
+                        <td>${formData.receiptNumber || 'غير محدد'}</td>
+                        <th>تاريخ الوصل</th>
+                        <td>${formData.receiptDate ? new Date(formData.receiptDate).toLocaleDateString('ar-EG') : 'غير محدد'}</td>
+                    </tr>
+                    <tr>
+                        <th>فئة المصروف</th>
+                        <td>${formData.category}</td>
+                        <th>المشروع</th>
+                        <td>${formData.project || 'غير محدد'}</td>
+                    </tr>
+                    ${formData.notes ? `
+                    <tr>
+                        <th>الملاحظات</th>
+                        <td colspan="3">${formData.notes}</td>
+                    </tr>
+                    ` : ''}
+                </table>
+
+                <div class="signatures">
+                    <div class="signature-box">
+                        <div class="signature-line">المحاسب</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line">المدير المالي</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line">المدير العام</div>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <p>تم إنشاء هذه الفاتورة بواسطة نظام إدارة المصروفات</p>
+                    <p>${new Date().toLocaleString('ar-EG')}</p>
+                </div>
+
+                <div class="no-print" style="text-align: center; margin-top: 30px;">
+                    <button onclick="window.print()" style="background: #2c5aa0; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px;">طباعة</button>
+                    <button onclick="window.close()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px;">إغلاق</button>
+                </div>
+            </body>
+            </html>
+            `;
+
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.focus();
+        }
+        
+        // Save expense
+        function saveExpense() {
+            const formData = getFormData();
+            if (!formData) return;
+
+            // Here you would normally save to storage
+            alert('تم حفظ المصروف بنجاح!\n\nرقم القيد: ' + formData.registrationNumber + '\nالمبلغ: ' + formData.amountIQD + ' د.ع / $' + formData.amountUSD);
+
+            // Reset form and generate new registration number
+            resetForm();
+        }
+
+        // Reset form function
+        function resetForm() {
+            document.getElementById('expenseForm').reset();
+            document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('expenseExchangeRate').value = '1500';
+            document.getElementById('expenseRegistrationNumber').value = generateRegistrationNumber();
+            document.getElementById('expensePreview').style.display = 'none';
+        }
+
+        // Add event listener for reset button
+        document.addEventListener('DOMContentLoaded', function() {
+            const resetButton = document.querySelector('button[type="reset"]');
+            if (resetButton) {
+                resetButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    resetForm();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استرداد البيانات - نظام المحاسبة</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            direction: rtl;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+            width: 100%;
+        }
+        .btn:hover {
+            background: #5a6fd8;
+        }
+        .btn.success {
+            background: #4CAF50;
+        }
+        .btn.warning {
+            background: #ff9800;
+        }
+        .success {
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+        .error {
+            background: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+        .info {
+            background: #2196F3;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .data-section {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: monospace;
+            direction: ltr;
+        }
+        .file-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .backup-info {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 استرداد البيانات المحذوفة</h1>
+        
+        <div class="info">
+            <strong>لا تقلق! يمكننا محاولة استرداد البيانات بعدة طرق</strong>
+        </div>
+
+        <div id="successMsg" class="success"></div>
+        <div id="errorMsg" class="error"></div>
+
+        <!-- البحث عن النسخ الاحتياطية -->
+        <div class="data-section">
+            <h3>🔍 البحث عن النسخ الاحتياطية التلقائية</h3>
+            <button class="btn" onclick="searchForBackups()">البحث عن النسخ الاحتياطية</button>
+            <div id="backupResults" class="backup-info" style="display: none;"></div>
+        </div>
+
+        <!-- استرداد من ذاكرة المتصفح -->
+        <div class="data-section">
+            <h3>💾 البحث في ذاكرة المتصفح</h3>
+            <button class="btn" onclick="searchBrowserStorage()">فحص جميع البيانات المحفوظة</button>
+            <div id="storageResults" class="backup-info" style="display: none;"></div>
+        </div>
+
+        <!-- استيراد من ملف -->
+        <div class="data-section">
+            <h3>📁 استيراد من ملف احتياطي</h3>
+            <p>إذا كان لديك ملف احتياطي محفوظ من قبل:</p>
+            <input type="file" class="file-input" id="importFile" accept=".json">
+            <button class="btn" onclick="importFromFile()">استيراد البيانات</button>
+        </div>
+
+        <!-- إدخال بيانات تجريبية -->
+        <div class="data-section">
+            <h3>📝 إضافة بيانات تجريبية للاختبار</h3>
+            <p>سنضيف بيانات تجريبية لتتمكن من اختبار النظام:</p>
+            <button class="btn success" onclick="addSampleData()">إضافة بيانات تجريبية</button>
+        </div>
+
+        <!-- إدخال يدوي -->
+        <div class="data-section">
+            <h3>✏️ إدخال البيانات يدوياً</h3>
+            <p>يمكنك إدخال البيانات التي تتذكرها:</p>
+            <button class="btn warning" onclick="goToManualEntry()">بدء الإدخال اليدوي</button>
+        </div>
+
+        <button class="btn" onclick="goToMainSystem()" style="background: #4CAF50;">
+            ✅ الذهاب إلى النظام الرئيسي
+        </button>
+    </div>
+
+    <script>
+        function showMessage(message, type) {
+            const successMsg = document.getElementById('successMsg');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+            
+            if (type === 'success') {
+                successMsg.innerHTML = message;
+                successMsg.style.display = 'block';
+            } else {
+                errorMsg.innerHTML = message;
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        function searchForBackups() {
+            const backupResults = document.getElementById('backupResults');
+            let foundBackups = [];
+
+            // البحث عن النسخ الاحتياطية
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('backup') || key.includes('accounting'))) {
+                    foundBackups.push({
+                        key: key,
+                        size: localStorage.getItem(key).length,
+                        data: localStorage.getItem(key)
+                    });
+                }
+            }
+
+            if (foundBackups.length > 0) {
+                let html = '<h4>تم العثور على النسخ الاحتياطية التالية:</h4>';
+                foundBackups.forEach((backup, index) => {
+                    html += `
+                        <div style="border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                            <strong>المفتاح:</strong> ${backup.key}<br>
+                            <strong>الحجم:</strong> ${backup.size} حرف<br>
+                            <button onclick="restoreBackup('${backup.key}')" style="background: #4CAF50; color: white; border: none; padding: 5px 10px; border-radius: 3px; margin-top: 5px;">
+                                استرداد هذه النسخة
+                            </button>
+                        </div>
+                    `;
+                });
+                backupResults.innerHTML = html;
+                backupResults.style.display = 'block';
+            } else {
+                backupResults.innerHTML = '<p style="color: #f44336;">لم يتم العثور على نسخ احتياطية</p>';
+                backupResults.style.display = 'block';
+            }
+        }
+
+        function restoreBackup(key) {
+            try {
+                const backupData = localStorage.getItem(key);
+                if (backupData) {
+                    // محاولة فك التشفير
+                    let data;
+                    try {
+                        data = JSON.parse(decodeURIComponent(escape(atob(backupData))));
+                    } catch {
+                        data = JSON.parse(backupData);
+                    }
+
+                    if (data.data) {
+                        // استرداد البيانات
+                        if (data.data.shareholders) {
+                            localStorage.setItem('accounting_shareholders', btoa(unescape(encodeURIComponent(JSON.stringify(data.data.shareholders)))));
+                        }
+                        if (data.data.capital) {
+                            localStorage.setItem('accounting_capital', btoa(unescape(encodeURIComponent(JSON.stringify(data.data.capital)))));
+                        }
+                        if (data.data.expenses) {
+                            localStorage.setItem('accounting_expenses', btoa(unescape(encodeURIComponent(JSON.stringify(data.data.expenses)))));
+                        }
+                        
+                        showMessage('تم استرداد البيانات بنجاح! ✅', 'success');
+                    }
+                }
+            } catch (error) {
+                showMessage('خطأ في استرداد البيانات: ' + error.message, 'error');
+            }
+        }
+
+        function searchBrowserStorage() {
+            const storageResults = document.getElementById('storageResults');
+            let allData = {};
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                allData[key] = value.substring(0, 100) + (value.length > 100 ? '...' : '');
+            }
+
+            let html = '<h4>جميع البيانات المحفوظة:</h4>';
+            html += '<pre style="background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto;">';
+            html += JSON.stringify(allData, null, 2);
+            html += '</pre>';
+
+            storageResults.innerHTML = html;
+            storageResults.style.display = 'block';
+        }
+
+        function importFromFile() {
+            const fileInput = document.getElementById('importFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showMessage('يرجى اختيار ملف أولاً', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (data.shareholders) {
+                        localStorage.setItem('accounting_shareholders', btoa(unescape(encodeURIComponent(JSON.stringify(data.shareholders)))));
+                    }
+                    if (data.capital) {
+                        localStorage.setItem('accounting_capital', btoa(unescape(encodeURIComponent(JSON.stringify(data.capital)))));
+                    }
+                    if (data.expenses) {
+                        localStorage.setItem('accounting_expenses', btoa(unescape(encodeURIComponent(JSON.stringify(data.expenses)))));
+                    }
+
+                    showMessage('تم استيراد البيانات بنجاح! ✅', 'success');
+                } catch (error) {
+                    showMessage('خطأ في قراءة الملف: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function addSampleData() {
+            try {
+                // بيانات تجريبية للمساهمين
+                const sampleShareholders = [
+                    {
+                        id: 'sh001',
+                        name: 'أحمد محمد علي',
+                        position: 'المدير التنفيذي',
+                        phone: '07901234567',
+                        civilId: '12345678901',
+                        address: 'بغداد - الكرادة',
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        id: 'sh002',
+                        name: 'فاطمة حسن',
+                        position: 'مديرة المالية',
+                        phone: '07907654321',
+                        civilId: '10987654321',
+                        address: 'بغداد - الجادرية',
+                        createdAt: new Date().toISOString()
+                    }
+                ];
+
+                // بيانات تجريبية لرأس المال
+                const sampleCapital = [
+                    {
+                        id: 'cap001',
+                        registrationNumber: '20241201001',
+                        shareholderId: 'sh001',
+                        currency: 'USD',
+                        amount: 50000,
+                        date: '2024-01-15',
+                        receiptNumber: 'REC001',
+                        notes: 'رأس مال أولي',
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        id: 'cap002',
+                        registrationNumber: '20241201002',
+                        shareholderId: 'sh002',
+                        currency: 'IQD',
+                        amount: 75000000,
+                        date: '2024-01-20',
+                        receiptNumber: 'REC002',
+                        notes: 'مساهمة إضافية',
+                        createdAt: new Date().toISOString()
+                    }
+                ];
+
+                // بيانات تجريبية للمصروفات
+                const sampleExpenses = [
+                    {
+                        id: 'exp001',
+                        registrationNumber: '20241201003',
+                        category: 'مواد البناء',
+                        currency: 'USD',
+                        amount: 5000,
+                        date: '2024-02-01',
+                        receiptNumber: 'EXP001',
+                        vendor: 'شركة المواد الإنشائية',
+                        paymentMethod: 'bank_transfer',
+                        description: 'شراء مواد بناء للمشروع الأول',
+                        notes: 'دفعة أولى',
+                        createdAt: new Date().toISOString()
+                    }
+                ];
+
+                // حفظ البيانات التجريبية
+                localStorage.setItem('accounting_shareholders', btoa(unescape(encodeURIComponent(JSON.stringify(sampleShareholders)))));
+                localStorage.setItem('accounting_capital', btoa(unescape(encodeURIComponent(JSON.stringify(sampleCapital)))));
+                localStorage.setItem('accounting_expenses', btoa(unescape(encodeURIComponent(JSON.stringify(sampleExpenses)))));
+
+                showMessage('تم إضافة البيانات التجريبية بنجاح! ✅<br>المساهمون: 2<br>إدخالات رأس المال: 2<br>المصروفات: 1', 'success');
+            } catch (error) {
+                showMessage('خطأ في إضافة البيانات التجريبية: ' + error.message, 'error');
+            }
+        }
+
+        function goToManualEntry() {
+            alert('سيتم توجيهك إلى النظام الرئيسي حيث يمكنك إدخال البيانات يدوياً من خلال الواجهات المختلفة.');
+            goToMainSystem();
+        }
+
+        function goToMainSystem() {
+            window.location.href = 'index.html';
+        }
+
+        // تشغيل تلقائي عند تحميل الصفحة
+        window.onload = function() {
+            searchForBackups();
+        };
+    </script>
+</body>
+</html>

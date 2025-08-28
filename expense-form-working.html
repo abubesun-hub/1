@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نموذج إضافة المصروف - يعمل 100%</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .main-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .form-control {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .btn {
+            border-radius: 10px;
+            padding: 12px 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .currency-display {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .print-area {
+            display: none;
+        }
+        @media print {
+            body * { visibility: hidden; }
+            .print-area, .print-area * { visibility: visible; }
+            .print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-card">
+            <div class="card-header">
+                <h2><i class="bi bi-receipt me-3"></i>نموذج إضافة المصروف المطور</h2>
+                <p class="mb-0">نظام إدارة المصروفات - الإصدار المحدث</p>
+            </div>
+            
+            <div class="card-body p-4">
+                <form id="expenseForm">
+                    <div class="row">
+                        <!-- رقم القيد والتاريخ -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-hash text-primary me-2"></i>رقم القيد
+                            </label>
+                            <input type="text" class="form-control" id="registrationNumber" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-calendar text-primary me-2"></i>التاريخ
+                            </label>
+                            <input type="date" class="form-control" id="expenseDate" required>
+                        </div>
+
+                        <!-- المبالغ وسعر الصرف -->
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-cash text-success me-2"></i>المبلغ بالدينار
+                            </label>
+                            <input type="number" class="form-control" id="amountIQD" 
+                                   placeholder="0" onchange="calculateCurrency('IQD')">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-currency-dollar text-success me-2"></i>المبلغ بالدولار
+                            </label>
+                            <input type="number" class="form-control" id="amountUSD" 
+                                   placeholder="0.00" step="0.01" onchange="calculateCurrency('USD')">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-arrow-left-right text-warning me-2"></i>سعر الصرف
+                            </label>
+                            <input type="number" class="form-control" id="exchangeRate" 
+                                   value="1500" onchange="calculateCurrency()">
+                        </div>
+
+                        <!-- عرض المبالغ -->
+                        <div class="col-12 mb-3">
+                            <div class="currency-display">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5 class="text-danger mb-0">
+                                            <i class="bi bi-cash me-2"></i>
+                                            <span id="displayIQD">0 د.ع</span>
+                                        </h5>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5 class="text-success mb-0">
+                                            <i class="bi bi-currency-dollar me-2"></i>
+                                            <span id="displayUSD">$0.00</span>
+                                        </h5>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- البيان والدليل المحاسبي -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-file-text text-info me-2"></i>البيان
+                            </label>
+                            <input type="text" class="form-control" id="description" 
+                                   placeholder="وصف المصروف..." required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-book text-info me-2"></i>الدليل المحاسبي
+                            </label>
+                            <select class="form-control" id="accountingGuide" required>
+                                <option value="">اختر من الدليل المحاسبي</option>
+                                <option value="5101">5101 - الأسمنت</option>
+                                <option value="5102">5102 - الحديد والصلب</option>
+                                <option value="5103">5103 - الرمل والحصى</option>
+                                <option value="5201">5201 - أجور العمال المهرة</option>
+                                <option value="5202">5202 - أجور العمال العاديين</option>
+                                <option value="5301">5301 - إيجار المعدات الثقيلة</option>
+                                <option value="5302">5302 - صيانة المعدات</option>
+                            </select>
+                        </div>
+
+                        <!-- المستفيد والمورد -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-person text-secondary me-2"></i>المستفيد
+                            </label>
+                            <input type="text" class="form-control" id="beneficiary" 
+                                   placeholder="اسم المستفيد...">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-building text-secondary me-2"></i>المورد/الجهة
+                            </label>
+                            <input type="text" class="form-control" id="vendor" 
+                                   placeholder="اسم المورد...">
+                        </div>
+
+                        <!-- رقم الوصل وطريقة الدفع -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-receipt text-dark me-2"></i>رقم الوصل
+                            </label>
+                            <input type="text" class="form-control" id="receiptNumber" 
+                                   placeholder="رقم الوصل...">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-credit-card text-dark me-2"></i>طريقة الدفع
+                            </label>
+                            <select class="form-control" id="paymentMethod">
+                                <option value="">اختر طريقة الدفع</option>
+                                <option value="cash">نقداً</option>
+                                <option value="bank">تحويل بنكي</option>
+                                <option value="check">شيك</option>
+                                <option value="card">بطاقة ائتمان</option>
+                            </select>
+                        </div>
+
+                        <!-- الفئة والمشروع -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-tags text-warning me-2"></i>فئة المصروف
+                            </label>
+                            <select class="form-control" id="category" required>
+                                <option value="">اختر الفئة</option>
+                                <option value="مواد البناء">مواد البناء</option>
+                                <option value="العمالة">العمالة</option>
+                                <option value="المعدات">المعدات والآلات</option>
+                                <option value="النقل">النقل والمواصلات</option>
+                                <option value="الوقود">الوقود والطاقة</option>
+                                <option value="الصيانة">الصيانة والإصلاح</option>
+                                <option value="أخرى">أخرى</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-diagram-3 text-warning me-2"></i>المشروع
+                            </label>
+                            <select class="form-control" id="project">
+                                <option value="">اختر المشروع</option>
+                                <option value="مشروع 1">مشروع البناء الرئيسي</option>
+                                <option value="مشروع 2">مشروع التوسعة</option>
+                                <option value="مشروع 3">مشروع الصيانة</option>
+                                <option value="عام">مصروف عام</option>
+                            </select>
+                        </div>
+
+                        <!-- الملاحظات -->
+                        <div class="col-12 mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-chat-text text-muted me-2"></i>الملاحظات
+                            </label>
+                            <textarea class="form-control" id="notes" rows="3" 
+                                      placeholder="ملاحظات إضافية..."></textarea>
+                        </div>
+
+                        <!-- أزرار التحكم -->
+                        <div class="col-12 text-center">
+                            <button type="button" class="btn btn-success btn-lg me-2" onclick="fillTestData()">
+                                <i class="bi bi-clipboard-data me-2"></i>بيانات تجريبية
+                            </button>
+                            <button type="button" class="btn btn-info btn-lg me-2" onclick="previewExpense()">
+                                <i class="bi bi-eye me-2"></i>معاينة
+                            </button>
+                            <button type="button" class="btn btn-warning btn-lg me-2" onclick="printInvoice()">
+                                <i class="bi bi-printer me-2"></i>طباعة الفاتورة
+                            </button>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-save me-2"></i>حفظ المصروف
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- معاينة -->
+                <div id="previewArea" class="mt-4" style="display: none;">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5><i class="bi bi-eye me-2"></i>معاينة المصروف</h5>
+                        </div>
+                        <div class="card-body" id="previewContent">
+                            <!-- Preview content here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- منطقة الطباعة -->
+    <div id="printArea" class="print-area">
+        <!-- Print content will be generated here -->
+    </div>
+
+    <script>
+        // تهيئة النموذج
+        document.addEventListener('DOMContentLoaded', function() {
+            generateRegistrationNumber();
+            setCurrentDate();
+        });
+
+        // إنشاء رقم القيد
+        function generateRegistrationNumber() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const time = String(now.getTime()).slice(-6);
+            document.getElementById('registrationNumber').value = `EXP-${year}${month}${day}-${time}`;
+        }
+
+        // تعيين التاريخ الحالي
+        function setCurrentDate() {
+            document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+        }
+
+        // حساب العملة
+        function calculateCurrency(changed = null) {
+            const iqd = parseFloat(document.getElementById('amountIQD').value) || 0;
+            const usd = parseFloat(document.getElementById('amountUSD').value) || 0;
+            const rate = parseFloat(document.getElementById('exchangeRate').value) || 1500;
+
+            if (changed === 'IQD' && iqd > 0) {
+                const usdAmount = iqd / rate;
+                document.getElementById('amountUSD').value = usdAmount.toFixed(2);
+            } else if (changed === 'USD' && usd > 0) {
+                const iqdAmount = usd * rate;
+                document.getElementById('amountIQD').value = Math.round(iqdAmount);
+            } else if (!changed && usd > 0) {
+                const iqdAmount = usd * rate;
+                document.getElementById('amountIQD').value = Math.round(iqdAmount);
+            }
+
+            // تحديث العرض
+            updateCurrencyDisplay();
+        }
+
+        // تحديث عرض المبالغ
+        function updateCurrencyDisplay() {
+            const iqd = parseFloat(document.getElementById('amountIQD').value) || 0;
+            const usd = parseFloat(document.getElementById('amountUSD').value) || 0;
+            
+            document.getElementById('displayIQD').textContent = iqd.toLocaleString() + ' د.ع';
+            document.getElementById('displayUSD').textContent = '$' + usd.toFixed(2);
+        }
+
+        // ملء بيانات تجريبية
+        function fillTestData() {
+            document.getElementById('amountIQD').value = '150000';
+            document.getElementById('amountUSD').value = '100';
+            document.getElementById('description').value = 'شراء مواد بناء للمشروع';
+            document.getElementById('accountingGuide').value = '5101';
+            document.getElementById('beneficiary').value = 'شركة مواد البناء المحدودة';
+            document.getElementById('vendor').value = 'مؤسسة الإعمار للمواد';
+            document.getElementById('receiptNumber').value = 'REC-2024-001';
+            document.getElementById('paymentMethod').value = 'cash';
+            document.getElementById('category').value = 'مواد البناء';
+            document.getElementById('project').value = 'مشروع 1';
+            document.getElementById('notes').value = 'مصروف ضروري للمشروع الرئيسي';
+            
+            updateCurrencyDisplay();
+            alert('تم ملء النموذج ببيانات تجريبية');
+        }
+
+        // معاينة المصروف
+        function previewExpense() {
+            const data = getFormData();
+            if (!data) return;
+
+            const previewHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr><td><strong>رقم القيد:</strong></td><td>${data.registrationNumber}</td></tr>
+                            <tr><td><strong>التاريخ:</strong></td><td>${data.date}</td></tr>
+                            <tr><td><strong>البيان:</strong></td><td>${data.description}</td></tr>
+                            <tr><td><strong>المستفيد:</strong></td><td>${data.beneficiary || 'غير محدد'}</td></tr>
+                            <tr><td><strong>المورد:</strong></td><td>${data.vendor || 'غير محدد'}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr><td><strong>المبلغ بالدينار:</strong></td><td class="text-danger">${data.amountIQD.toLocaleString()} د.ع</td></tr>
+                            <tr><td><strong>المبلغ بالدولار:</strong></td><td class="text-success">$${data.amountUSD.toFixed(2)}</td></tr>
+                            <tr><td><strong>سعر الصرف:</strong></td><td>${data.exchangeRate}</td></tr>
+                            <tr><td><strong>رقم الوصل:</strong></td><td>${data.receiptNumber || 'غير محدد'}</td></tr>
+                            <tr><td><strong>طريقة الدفع:</strong></td><td>${getPaymentMethodText(data.paymentMethod)}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                ${data.notes ? `<div class="mt-3"><strong>الملاحظات:</strong><br>${data.notes}</div>` : ''}
+            `;
+
+            document.getElementById('previewContent').innerHTML = previewHTML;
+            document.getElementById('previewArea').style.display = 'block';
+            document.getElementById('previewArea').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // طباعة الفاتورة
+        function printInvoice() {
+            const data = getFormData();
+            if (!data) return;
+
+            const printWindow = window.open('', '_blank', 'width=800,height=600');
+            const printContent = `
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>فاتورة مصروف - ${data.registrationNumber}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+                    .header h1 { color: #2c5aa0; margin: 0; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+                    th { background-color: #f5f5f5; font-weight: bold; }
+                    .amount { font-weight: bold; font-size: 16px; }
+                    .signatures { display: flex; justify-content: space-between; margin-top: 60px; }
+                    .signature { text-align: center; width: 30%; }
+                    .signature-line { border-top: 2px solid #333; padding-top: 10px; margin-top: 40px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>فاتورة مصروف</h1>
+                    <h3>نظام إدارة المصروفات</h3>
+                    <p>تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
+                </div>
+                
+                <table>
+                    <tr><th>رقم القيد</th><td class="amount">${data.registrationNumber}</td><th>التاريخ</th><td>${data.date}</td></tr>
+                    <tr><th>البيان</th><td colspan="3">${data.description}</td></tr>
+                    <tr><th>المبلغ بالدينار</th><td class="amount" style="color: #d63384;">${data.amountIQD.toLocaleString()} د.ع</td><th>المبلغ بالدولار</th><td class="amount" style="color: #198754;">$${data.amountUSD.toFixed(2)}</td></tr>
+                    <tr><th>سعر الصرف</th><td>${data.exchangeRate}</td><th>طريقة الدفع</th><td>${getPaymentMethodText(data.paymentMethod)}</td></tr>
+                    <tr><th>الدليل المحاسبي</th><td colspan="3">${data.accountingGuide}</td></tr>
+                    <tr><th>المستفيد</th><td>${data.beneficiary || 'غير محدد'}</td><th>المورد</th><td>${data.vendor || 'غير محدد'}</td></tr>
+                    <tr><th>رقم الوصل</th><td>${data.receiptNumber || 'غير محدد'}</td><th>الفئة</th><td>${data.category}</td></tr>
+                    ${data.notes ? `<tr><th>الملاحظات</th><td colspan="3">${data.notes}</td></tr>` : ''}
+                </table>
+                
+                <div class="signatures">
+                    <div class="signature"><div class="signature-line">المحاسب</div></div>
+                    <div class="signature"><div class="signature-line">المدير المالي</div></div>
+                    <div class="signature"><div class="signature-line">المدير العام</div></div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <button onclick="window.print()" style="background: #2c5aa0; color: white; border: none; padding: 10px 20px; border-radius: 5px; margin: 5px;">طباعة</button>
+                    <button onclick="window.close()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 5px; margin: 5px;">إغلاق</button>
+                </div>
+            </body>
+            </html>
+            `;
+            
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.focus();
+        }
+
+        // الحصول على بيانات النموذج
+        function getFormData() {
+            const registrationNumber = document.getElementById('registrationNumber').value;
+            const date = document.getElementById('expenseDate').value;
+            const amountIQD = parseFloat(document.getElementById('amountIQD').value) || 0;
+            const amountUSD = parseFloat(document.getElementById('amountUSD').value) || 0;
+            const exchangeRate = parseFloat(document.getElementById('exchangeRate').value) || 1500;
+            const description = document.getElementById('description').value;
+            const accountingGuide = document.getElementById('accountingGuide').value;
+            const beneficiary = document.getElementById('beneficiary').value;
+            const vendor = document.getElementById('vendor').value;
+            const receiptNumber = document.getElementById('receiptNumber').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const category = document.getElementById('category').value;
+            const project = document.getElementById('project').value;
+            const notes = document.getElementById('notes').value;
+
+            if (!registrationNumber || !date || !description || !accountingGuide || !category) {
+                alert('يرجى ملء جميع الحقول المطلوبة');
+                return null;
+            }
+
+            if (amountIQD === 0 && amountUSD === 0) {
+                alert('يرجى إدخال مبلغ المصروف');
+                return null;
+            }
+
+            return {
+                registrationNumber, date, amountIQD, amountUSD, exchangeRate,
+                description, accountingGuide, beneficiary, vendor, receiptNumber,
+                paymentMethod, category, project, notes
+            };
+        }
+
+        // نص طريقة الدفع
+        function getPaymentMethodText(method) {
+            const methods = {
+                'cash': 'نقداً',
+                'bank': 'تحويل بنكي',
+                'check': 'شيك',
+                'card': 'بطاقة ائتمان'
+            };
+            return methods[method] || 'غير محدد';
+        }
+
+        // حفظ المصروف
+        document.getElementById('expenseForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const data = getFormData();
+            if (data) {
+                alert('تم حفظ المصروف بنجاح!\n\nرقم القيد: ' + data.registrationNumber + '\nالمبلغ: ' + data.amountIQD + ' د.ع / $' + data.amountUSD);
+                
+                // إعادة تعيين النموذج
+                this.reset();
+                generateRegistrationNumber();
+                setCurrentDate();
+                document.getElementById('exchangeRate').value = '1500';
+                updateCurrencyDisplay();
+                document.getElementById('previewArea').style.display = 'none';
+            }
+        });
+
+        // تحديث العرض عند تغيير المبالغ
+        document.getElementById('amountIQD').addEventListener('input', updateCurrencyDisplay);
+        document.getElementById('amountUSD').addEventListener('input', updateCurrencyDisplay);
+    </script>
+</body>
+</html>

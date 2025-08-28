@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار بسيط - الدليل المحاسبي</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">اختبار الدليل المحاسبي المبسط</h1>
+        
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <button class="btn btn-primary btn-lg me-2" onclick="createGuide()">إنشاء الدليل المحاسبي</button>
+                <button class="btn btn-success btn-lg me-2" onclick="testGuide()">اختبار الدليل</button>
+                <button class="btn btn-info btn-lg me-2" onclick="showGuide()">عرض الدليل</button>
+                <button class="btn btn-danger btn-lg me-2" onclick="fixLogin()">إصلاح تسجيل الدخول</button>
+                <button class="btn btn-warning btn-lg" onclick="goToSystem()">الذهاب للنظام</button>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>النتائج</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="results" style="height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px; font-family: monospace;">
+                            <p>اضغط على الأزرار أعلاه لبدء الاختبار...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Guide Display Area -->
+        <div id="guideDisplay" class="row mt-4" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>الدليل المحاسبي</h5>
+                    </div>
+                    <div class="card-body" id="guideContent">
+                        <!-- Guide content will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    
+    <script>
+        function log(message) {
+            const results = document.getElementById('results');
+            const time = new Date().toLocaleTimeString('ar-IQ');
+            results.innerHTML += `<div>[${time}] ${message}</div>`;
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function createGuide() {
+            log('🚀 بدء إنشاء الدليل المحاسبي...');
+            
+            const defaultGuide = [
+                // مواد البناء
+                { id: 'guide001', code: '5101', name: 'الأسمنت', category: 'مواد البناء', type: 'مصروف مباشر', description: 'أسمنت بورتلاندي عادي وخاص', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide002', code: '5102', name: 'الحديد والصلب', category: 'مواد البناء', type: 'مصروف مباشر', description: 'حديد التسليح وقضبان الصلب', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide003', code: '5103', name: 'الرمل والحصى', category: 'مواد البناء', type: 'مصروف مباشر', description: 'رمل البناء والحصى المختلف', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide004', code: '5104', name: 'الطوب والبلوك', category: 'مواد البناء', type: 'مصروف مباشر', description: 'طوب أحمر وبلوك خرساني', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide005', code: '5105', name: 'البلاط والسيراميك', category: 'مواد البناء', type: 'مصروف مباشر', description: 'بلاط أرضيات وسيراميك جدران', notes: '', createdAt: new Date().toISOString() },
+
+                // العمالة
+                { id: 'guide006', code: '5201', name: 'أجور العمال المهرة', category: 'العمالة', type: 'مصروف مباشر', description: 'أجور البنائين والحرفيين المهرة', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide007', code: '5202', name: 'أجور العمال العاديين', category: 'العمالة', type: 'مصروف مباشر', description: 'أجور العمال غير المهرة', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide008', code: '5203', name: 'أجور المقاولين الفرعيين', category: 'العمالة', type: 'مصروف مباشر', description: 'مدفوعات للمقاولين الفرعيين', notes: '', createdAt: new Date().toISOString() },
+
+                // المعدات والآلات
+                { id: 'guide009', code: '5301', name: 'إيجار المعدات الثقيلة', category: 'المعدات والآلات', type: 'مصروف مباشر', description: 'إيجار الحفارات والرافعات', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide010', code: '5302', name: 'صيانة المعدات', category: 'المعدات والآلات', type: 'مصروف تشغيلي', description: 'صيانة وإصلاح المعدات', notes: '', createdAt: new Date().toISOString() },
+
+                // النقل والمواصلات
+                { id: 'guide011', code: '5401', name: 'نقل المواد', category: 'النقل والمواصلات', type: 'مصروف مباشر', description: 'نقل مواد البناء للموقع', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide012', code: '5402', name: 'مصاريف الشاحنات', category: 'النقل والمواصلات', type: 'مصروف تشغيلي', description: 'وقود وصيانة الشاحنات', notes: '', createdAt: new Date().toISOString() },
+
+                // الوقود والطاقة
+                { id: 'guide013', code: '5501', name: 'وقود المعدات', category: 'الوقود والطاقة', type: 'مصروف تشغيلي', description: 'ديزل وبنزين للمعدات', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide014', code: '5502', name: 'الكهرباء', category: 'الوقود والطاقة', type: 'مصروف تشغيلي', description: 'فواتير الكهرباء للموقع', notes: '', createdAt: new Date().toISOString() },
+
+                // الرواتب والأجور
+                { id: 'guide015', code: '5601', name: 'رواتب الموظفين', category: 'الرواتب والأجور', type: 'مصروف إداري', description: 'رواتب الموظفين الإداريين', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide016', code: '5602', name: 'مكافآت ومزايا', category: 'الرواتب والأجور', type: 'مصروف إداري', description: 'مكافآت ومزايا الموظفين', notes: '', createdAt: new Date().toISOString() },
+
+                // المكتب والإدارة
+                { id: 'guide017', code: '5701', name: 'القرطاسية والمكتبيات', category: 'المكتب والإدارة', type: 'مصروف إداري', description: 'أوراق وأقلام ومستلزمات مكتبية', notes: '', createdAt: new Date().toISOString() },
+                { id: 'guide018', code: '5702', name: 'الاتصالات', category: 'المكتب والإدارة', type: 'مصروف إداري', description: 'هاتف وإنترنت وفاكس', notes: '', createdAt: new Date().toISOString() },
+
+                // التأمين
+                { id: 'guide019', code: '5801', name: 'تأمين المشروع', category: 'التأمين', type: 'مصروف غير مباشر', description: 'تأمين ضد المخاطر والحوادث', notes: '', createdAt: new Date().toISOString() },
+
+                // أخرى
+                { id: 'guide020', code: '5901', name: 'مصروفات متنوعة', category: 'أخرى', type: 'مصروف إداري', description: 'مصروفات أخرى غير مصنفة', notes: '', createdAt: new Date().toISOString() }
+            ];
+            
+            try {
+                const saved = StorageManager.saveData(StorageManager.STORAGE_KEYS.ACCOUNTING_GUIDE, defaultGuide);
+                if (saved) {
+                    log('✅ تم إنشاء الدليل المحاسبي بنجاح!');
+                    log(`📊 تم إنشاء ${defaultGuide.length} عنصر في الدليل`);
+                } else {
+                    log('❌ فشل في حفظ الدليل المحاسبي');
+                }
+            } catch (error) {
+                log('❌ خطأ في إنشاء الدليل: ' + error.message);
+            }
+        }
+        
+        function testGuide() {
+            log('🔍 اختبار الدليل المحاسبي...');
+            
+            try {
+                const guide = StorageManager.getData(StorageManager.STORAGE_KEYS.ACCOUNTING_GUIDE);
+                
+                if (guide && guide.length > 0) {
+                    log(`✅ الدليل المحاسبي موجود ويحتوي على ${guide.length} عنصر`);
+                    log(`📋 أول عنصر: ${guide[0].code} - ${guide[0].name}`);
+                    log(`📋 آخر عنصر: ${guide[guide.length-1].code} - ${guide[guide.length-1].name}`);
+                    
+                    // Count categories
+                    const categories = [...new Set(guide.map(item => item.category))];
+                    log(`📂 عدد الفئات: ${categories.length}`);
+                    categories.forEach(cat => {
+                        const count = guide.filter(item => item.category === cat).length;
+                        log(`   - ${cat}: ${count} عنصر`);
+                    });
+                    
+                } else {
+                    log('❌ الدليل المحاسبي غير موجود أو فارغ');
+                }
+            } catch (error) {
+                log('❌ خطأ في اختبار الدليل: ' + error.message);
+            }
+        }
+        
+        function showGuide() {
+            log('📋 عرض الدليل المحاسبي...');
+            
+            try {
+                const guide = StorageManager.getData(StorageManager.STORAGE_KEYS.ACCOUNTING_GUIDE);
+                
+                if (!guide || guide.length === 0) {
+                    log('❌ لا يوجد دليل محاسبي لعرضه');
+                    return;
+                }
+                
+                // Group by category
+                const grouped = {};
+                guide.forEach(item => {
+                    if (!grouped[item.category]) {
+                        grouped[item.category] = [];
+                    }
+                    grouped[item.category].push(item);
+                });
+                
+                let html = '<div class="row">';
+                
+                Object.keys(grouped).forEach(category => {
+                    html += `
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">${category} (${grouped[category].length})</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>الرمز</th>
+                                                    <th>الاسم</th>
+                                                    <th>النوع</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                    `;
+                    
+                    grouped[category].forEach(item => {
+                        html += `
+                            <tr>
+                                <td><strong>${item.code}</strong></td>
+                                <td>${item.name}</td>
+                                <td><span class="badge bg-secondary">${item.type}</span></td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += `
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                
+                document.getElementById('guideContent').innerHTML = html;
+                document.getElementById('guideDisplay').style.display = 'block';
+                
+                log('✅ تم عرض الدليل المحاسبي بنجاح');
+                
+            } catch (error) {
+                log('❌ خطأ في عرض الدليل: ' + error.message);
+            }
+        }
+        
+        function fixLogin() {
+            log('🔧 إصلاح تسجيل الدخول...');
+
+            try {
+                // مسح المستخدمين الموجودين
+                StorageManager.saveData(StorageManager.STORAGE_KEYS.USERS, []);
+                log('🗑️ تم مسح المستخدمين الموجودين');
+
+                // إنشاء المستخدم الافتراضي بكلمة مرور غير مشفرة (للاختبار)
+                const defaultUsers = [
+                    {
+                        id: 'user_admin_' + Date.now(),
+                        username: 'admin',
+                        password: 'admin123', // كلمة مرور غير مشفرة للاختبار
+                        name: 'المدير العام',
+                        role: 'admin',
+                        permissions: ['all'],
+                        isActive: true,
+                        createdAt: new Date().toISOString()
+                    }
+                ];
+
+                const usersSaved = StorageManager.saveData(StorageManager.STORAGE_KEYS.USERS, defaultUsers);
+                if (usersSaved) {
+                    log('✅ تم إنشاء المستخدم الافتراضي');
+                    log('👤 اسم المستخدم: admin');
+                    log('🔑 كلمة المرور: admin123');
+
+                    // التحقق من حفظ البيانات
+                    const savedUsers = StorageManager.getData(StorageManager.STORAGE_KEYS.USERS);
+                    log(`📊 عدد المستخدمين المحفوظين: ${savedUsers ? savedUsers.length : 0}`);
+                    if (savedUsers && savedUsers.length > 0) {
+                        log(`👤 المستخدم المحفوظ: ${savedUsers[0].username}`);
+                    }
+                } else {
+                    log('❌ فشل في إنشاء المستخدم');
+                }
+
+                // إنشاء الإعدادات الافتراضية
+                const defaultSettings = {
+                    exchangeRate: 1500,
+                    currency: 'USD',
+                    language: 'ar',
+                    autoBackup: true,
+                    backupInterval: 3600000
+                };
+
+                const settingsSaved = StorageManager.saveData(StorageManager.STORAGE_KEYS.SETTINGS, defaultSettings);
+                if (settingsSaved) {
+                    log('✅ تم إنشاء الإعدادات الافتراضية');
+                } else {
+                    log('❌ فشل في إنشاء الإعدادات');
+                }
+
+                // إنشاء بيانات فارغة للأقسام الأخرى
+                StorageManager.saveData(StorageManager.STORAGE_KEYS.SHAREHOLDERS, []);
+                StorageManager.saveData(StorageManager.STORAGE_KEYS.CAPITAL, []);
+                StorageManager.saveData(StorageManager.STORAGE_KEYS.EXPENSES, []);
+
+                log('✅ تم إصلاح جميع البيانات');
+                log('🎉 يمكنك الآن تسجيل الدخول بـ admin / admin123');
+
+                // اختبار تسجيل الدخول مباشرة
+                setTimeout(() => {
+                    testLoginDirectly();
+                }, 1000);
+
+            } catch (error) {
+                log('❌ خطأ في إصلاح تسجيل الدخول: ' + error.message);
+            }
+        }
+
+        function testLoginDirectly() {
+            log('🧪 اختبار تسجيل الدخول مباشرة...');
+
+            try {
+                const users = StorageManager.getData(StorageManager.STORAGE_KEYS.USERS);
+                if (!users || users.length === 0) {
+                    log('❌ لا يوجد مستخدمين في النظام');
+                    return;
+                }
+
+                const adminUser = users.find(u => u.username === 'admin');
+                if (!adminUser) {
+                    log('❌ لم يتم العثور على المستخدم admin');
+                    return;
+                }
+
+                log('✅ تم العثور على المستخدم admin');
+                log(`👤 اسم المستخدم: ${adminUser.username}`);
+                log(`🔑 كلمة المرور المحفوظة: ${adminUser.password}`);
+                log(`✅ حالة المستخدم: ${adminUser.isActive ? 'نشط' : 'غير نشط'}`);
+
+                // محاولة تسجيل دخول تجريبية
+                if (adminUser.password === 'admin123') {
+                    log('✅ كلمة المرور صحيحة - يمكن تسجيل الدخول');
+                } else {
+                    log('⚠️ كلمة المرور مشفرة - قد تحتاج لاستخدام النظام للتحقق');
+                }
+
+            } catch (error) {
+                log('❌ خطأ في اختبار تسجيل الدخول: ' + error.message);
+            }
+        }
+
+        function goToSystem() {
+            log('🚀 الانتقال إلى النظام الرئيسي...');
+            window.open('index.html', '_blank');
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            log('✅ تم تحميل الصفحة بنجاح');
+            log('📋 جاهز للاختبار!');
+            
+            // Test storage
+            if (typeof StorageManager !== 'undefined') {
+                log('✅ StorageManager متوفر');
+            } else {
+                log('❌ StorageManager غير متوفر');
+            }
+        });
+    </script>
+</body>
+</html>

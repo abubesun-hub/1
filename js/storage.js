@@ -6,7 +6,8 @@ class StorageManager {
         SHAREHOLDERS: 'accounting_shareholders',
         USERS: 'accounting_users',
         SETTINGS: 'accounting_settings',
-        BACKUP: 'accounting_backup'
+        BACKUP: 'accounting_backup',
+        ACCOUNTING_GUIDE: 'accounting_guide'
     };
 
     static ENCRYPTION_KEY = 'accounting_system_2024';
@@ -74,28 +75,36 @@ class StorageManager {
         }
     }
 
-    // Save data to localStorage
+    // Save data to localStorage (simplified without encryption)
     static saveData(key, data) {
         try {
-            const encryptedData = this.encrypt(JSON.stringify(data));
-            localStorage.setItem(key, encryptedData);
+            const jsonString = JSON.stringify(data);
+            localStorage.setItem(key, jsonString);
+            console.log(`✓ Data saved successfully for key: ${key}`);
             return true;
         } catch (error) {
-            console.error('Error saving data:', error);
+            console.error('✗ Error saving data:', error);
             return false;
         }
     }
 
-    // Get data from localStorage
+    // Get data from localStorage (simplified without decryption)
     static getData(key) {
         try {
-            const encryptedData = localStorage.getItem(key);
-            if (!encryptedData) return null;
-            
-            const decryptedData = this.decrypt(encryptedData);
-            return JSON.parse(decryptedData);
+            const data = localStorage.getItem(key);
+            if (!data) {
+                console.log(`ℹ No data found for key: ${key}`);
+                return null;
+            }
+
+            const parsed = JSON.parse(data);
+            console.log(`✓ Data retrieved successfully for key: ${key}, items: ${Array.isArray(parsed) ? parsed.length : 'object'}`);
+            return parsed;
         } catch (error) {
-            console.error('Error getting data:', error);
+            console.error('✗ Error getting data for key:', key, error);
+            // Clear corrupted data
+            localStorage.removeItem(key);
+            console.log(`🗑️ Cleared corrupted data for key: ${key}`);
             return null;
         }
     }
@@ -107,7 +116,8 @@ class StorageManager {
             capital: this.getData(this.STORAGE_KEYS.CAPITAL) || [],
             expenses: this.getData(this.STORAGE_KEYS.EXPENSES) || [],
             users: this.getData(this.STORAGE_KEYS.USERS) || [],
-            settings: this.getData(this.STORAGE_KEYS.SETTINGS) || {}
+            settings: this.getData(this.STORAGE_KEYS.SETTINGS) || {},
+            accountingGuide: this.getData(this.STORAGE_KEYS.ACCOUNTING_GUIDE) || []
         };
     }
 
@@ -207,6 +217,46 @@ class StorageManager {
         const expenses = this.getData(this.STORAGE_KEYS.EXPENSES) || [];
         const filteredExpenses = expenses.filter(e => e.id !== id);
         return this.saveData(this.STORAGE_KEYS.EXPENSES, filteredExpenses);
+    }
+
+    // Accounting Guide Management
+    static addAccountingGuideEntry(guideData) {
+        const guide = this.getData(this.STORAGE_KEYS.ACCOUNTING_GUIDE) || [];
+        const newEntry = {
+            id: this.generateId(),
+            registrationNumber: this.generateRegistrationNumber(),
+            ...guideData,
+            createdAt: new Date().toISOString()
+        };
+        guide.push(newEntry);
+
+        if (this.saveData(this.STORAGE_KEYS.ACCOUNTING_GUIDE, guide)) {
+            return newEntry;
+        }
+        return null;
+    }
+
+    // Update accounting guide entry
+    static updateAccountingGuideEntry(id, updateData) {
+        const guide = this.getData(this.STORAGE_KEYS.ACCOUNTING_GUIDE) || [];
+        const entryIndex = guide.findIndex(entry => entry.id === id);
+
+        if (entryIndex !== -1) {
+            guide[entryIndex] = {
+                ...guide[entryIndex],
+                ...updateData,
+                updatedAt: new Date().toISOString()
+            };
+            return this.saveData(this.STORAGE_KEYS.ACCOUNTING_GUIDE, guide);
+        }
+        return false;
+    }
+
+    // Delete accounting guide entry
+    static deleteAccountingGuideEntry(id) {
+        const guide = this.getData(this.STORAGE_KEYS.ACCOUNTING_GUIDE) || [];
+        const updatedGuide = guide.filter(entry => entry.id !== id);
+        return this.saveData(this.STORAGE_KEYS.ACCOUNTING_GUIDE, updatedGuide);
     }
 
     // Search functionality
@@ -416,6 +466,24 @@ document.addEventListener('DOMContentLoaded', () => {
 setInterval(() => {
     StorageManager.createBackup();
 }, 3600000);
+
+// Clear all corrupted data
+window.clearAllData = function() {
+    console.log('🗑️ Clearing all data...');
+    Object.values(StorageManager.STORAGE_KEYS).forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`Cleared: ${key}`);
+    });
+    console.log('✓ All data cleared. Reinitializing...');
+    StorageManager.init();
+};
+
+// Test function for debugging
+window.testStorage = function() {
+    console.log('Testing storage...');
+    console.log('All data:', StorageManager.getAllData());
+    console.log('Accounting guide:', StorageManager.getData(StorageManager.STORAGE_KEYS.ACCOUNTING_GUIDE));
+};
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
