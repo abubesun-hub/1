@@ -1,0 +1,9 @@
+Admin User:
+Username: admin
+Password: admin123
+Manager User:
+Username: manager
+Password: manager123
+Accountant User:
+Username: accountant
+Password: acc123
