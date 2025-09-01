@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تشخيص سريع للأخطاء</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .error { color: red; background: #ffe6e6; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { color: green; background: #e6ffe6; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .info { color: blue; background: #e6f3ff; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .log { background: #f8f9fa; border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>تشخيص سريع للأخطاء</h1>
+    
+    <button onclick="testBasics()">1. اختبار الأساسيات</button>
+    <button onclick="testLogin()">2. اختبار تسجيل الدخول</button>
+    <button onclick="clearData()">3. مسح البيانات</button>
+    <button onclick="clearLog()">مسح السجل</button>
+    
+    <div id="results"></div>
+    <div id="errorLog" class="log"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        const errorLogDiv = document.getElementById('errorLog');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+        }
+        
+        function logError(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            errorLogDiv.textContent += `[${timestamp}] ${message}\n`;
+            errorLogDiv.scrollTop = errorLogDiv.scrollHeight;
+        }
+        
+        // Capture all errors
+        window.addEventListener('error', function(e) {
+            logError(`خطأ JavaScript: ${e.message} في ${e.filename}:${e.lineno}`);
+            addResult(`خطأ JavaScript: ${e.message}`, 'error');
+        });
+        
+        window.addEventListener('unhandledrejection', function(e) {
+            logError(`Promise مرفوض: ${e.reason}`);
+            addResult(`Promise مرفوض: ${e.reason}`, 'error');
+        });
+        
+        // Override console methods
+        const originalConsoleError = console.error;
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            logError('Console Error: ' + args.join(' '));
+        };
+        
+        function testBasics() {
+            resultsDiv.innerHTML = '';
+            logError('=== بدء اختبار الأساسيات ===');
+            
+            try {
+                // Test localStorage
+                localStorage.setItem('test', 'value');
+                const testValue = localStorage.getItem('test');
+                if (testValue === 'value') {
+                    addResult('✅ localStorage يعمل بشكل صحيح', 'success');
+                } else {
+                    addResult('❌ localStorage لا يعمل', 'error');
+                }
+                localStorage.removeItem('test');
+                
+                // Test if scripts are loaded
+                if (typeof StorageManager !== 'undefined') {
+                    addResult('✅ StorageManager محمل بشكل صحيح', 'success');
+                } else {
+                    addResult('❌ StorageManager غير محمل', 'error');
+                }
+                
+                if (typeof SimpleAuthManager !== 'undefined') {
+                    addResult('✅ SimpleAuthManager محمل بشكل صحيح', 'success');
+                } else {
+                    addResult('❌ SimpleAuthManager غير محمل', 'error');
+                }
+                
+                // Test StorageManager functionality
+                if (typeof StorageManager !== 'undefined') {
+                    try {
+                        StorageManager.saveData('test_key', { test: 'data' });
+                        const data = StorageManager.getData('test_key');
+                        if (data && data.test === 'data') {
+                            addResult('✅ StorageManager يحفظ ويسترجع البيانات بشكل صحيح', 'success');
+                        } else {
+                            addResult('❌ StorageManager لا يحفظ البيانات بشكل صحيح', 'error');
+                        }
+                    } catch (error) {
+                        addResult(`❌ خطأ في StorageManager: ${error.message}`, 'error');
+                    }
+                }
+                
+            } catch (error) {
+                addResult(`❌ خطأ في الاختبار الأساسي: ${error.message}`, 'error');
+                logError(`خطأ في testBasics: ${error.message}`);
+            }
+        }
+        
+        async function testLogin() {
+            logError('=== بدء اختبار تسجيل الدخول ===');
+            
+            try {
+                if (typeof SimpleAuthManager === 'undefined') {
+                    addResult('❌ SimpleAuthManager غير متوفر', 'error');
+                    return;
+                }
+                
+                addResult('🔄 جاري اختبار تسجيل الدخول...', 'info');
+                
+                const result = await SimpleAuthManager.login('admin', 'admin123');
+                
+                logError(`نتيجة تسجيل الدخول: ${JSON.stringify(result)}`);
+                
+                if (result && result.success) {
+                    addResult(`✅ تسجيل الدخول ناجح! مرحباً ${result.user.name}`, 'success');
+                } else {
+                    addResult(`❌ فشل تسجيل الدخول: ${result ? result.message : 'نتيجة غير صحيحة'}`, 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ خطأ في تسجيل الدخول: ${error.message}`, 'error');
+                logError(`خطأ في testLogin: ${error.message}\nStack: ${error.stack}`);
+            }
+        }
+        
+        function clearData() {
+            try {
+                localStorage.clear();
+                addResult('✅ تم مسح جميع البيانات', 'success');
+                logError('تم مسح localStorage');
+            } catch (error) {
+                addResult(`❌ خطأ في مسح البيانات: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearLog() {
+            errorLogDiv.textContent = '';
+            resultsDiv.innerHTML = '';
+        }
+        
+        // Auto-run basic test on load
+        window.addEventListener('load', () => {
+            logError('تم تحميل الصفحة');
+            setTimeout(testBasics, 100);
+        });
+    </script>
+    
+    <!-- Load scripts with error handling -->
+    <script>
+        function loadScript(src, callback) {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = callback;
+            script.onerror = function() {
+                logError(`فشل في تحميل الملف: ${src}`);
+                addResult(`❌ فشل في تحميل الملف: ${src}`, 'error');
+            };
+            document.head.appendChild(script);
+        }
+        
+        // Load scripts sequentially
+        loadScript('js/storage.js', function() {
+            logError('تم تحميل storage.js');
+            loadScript('js/auth-simple.js', function() {
+                logError('تم تحميل auth-simple.js');
+            });
+        });
+    </script>
+</body>
+</html>

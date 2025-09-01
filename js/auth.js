@@ -32,64 +32,139 @@ class AuthManager {
 
     // Login user
     async login(username, password) {
+        console.log('AuthManager.login: بدء عملية تسجيل الدخول');
         try {
+            // Validate input
+            if (!username || !password) {
+                console.log('AuthManager.login: بيانات الدخول فارغة');
+                return { success: false, message: 'يرجى إدخال اسم المستخدم وكلمة المرور' };
+            }
+            
+            console.log('AuthManager.login: استدعاء validateCredentials');
             // Validate credentials
             const user = await this.validateCredentials(username, password);
+            console.log('AuthManager.login: نتيجة validateCredentials:', user);
             
             if (user) {
+                console.log('AuthManager.login: المستخدم صحيح، حفظ الجلسة');
                 this.currentUser = user;
-                this.saveSession(user);
-                this.logLoginAttempt(username, true);
+                
+                try {
+                    this.saveSession(user);
+                    console.log('AuthManager.login: تم حفظ الجلسة');
+                } catch (sessionError) {
+                    console.error('AuthManager.login: خطأ في حفظ الجلسة:', sessionError);
+                }
+                
+                // تسجيل محاولة الدخول الناجحة مع معالجة الأخطاء
+                try {
+                    this.logLoginAttempt(username, true);
+                } catch (logError) {
+                    console.error('خطأ في تسجيل محاولة الدخول:', logError);
+                }
+                
+                console.log('AuthManager.login: تسجيل الدخول ناجح');
                 return { success: true, user: user };
             } else {
-                this.logLoginAttempt(username, false);
+                console.log('AuthManager.login: بيانات المستخدم غير صحيحة');
+                // تسجيل محاولة الدخول الفاشلة
+                try {
+                    this.logLoginAttempt(username, false);
+                } catch (logError) {
+                    console.error('خطأ في تسجيل محاولة الدخول:', logError);
+                }
                 return { success: false, message: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
             }
         } catch (error) {
-            console.error('Login error:', error);
-            return { success: false, message: 'حدث خطأ أثناء تسجيل الدخول' };
+            console.error('AuthManager.login: خطأ في تسجيل الدخول:', error);
+            console.error('AuthManager.login: تفاصيل الخطأ:', error.stack);
+            return { success: false, message: 'حدث خطأ أثناء تسجيل الدخول: ' + error.message };
         }
     }
 
     // Validate user credentials
     async validateCredentials(username, password) {
-        // Get users from storage
-        const users = StorageManager.getData(StorageManager.STORAGE_KEYS.USERS) || [];
+        console.log('validateCredentials: بدء التحقق من بيانات المستخدم:', username);
         
-        // Default admin user if no users exist
-        if (users.length === 0) {
-            const defaultAdmin = {
-                id: StorageManager.generateId(),
-                username: 'admin',
-                password: this.hashPassword('admin123'),
-                name: 'المدير العام',
-                role: 'admin',
-                permissions: ['all'],
-                isActive: true,
-                createdAt: new Date().toISOString()
-            };
-            users.push(defaultAdmin);
-            StorageManager.saveData(StorageManager.STORAGE_KEYS.USERS, users);
-        }
-
-        // Find user
-        const user = users.find(u => u.username === username && u.isActive);
-        
-        if (user) {
-            // Check password (simplified for testing)
-            const passwordMatch = (password === user.password) || this.verifyPassword(password, user.password);
-
-            if (passwordMatch) {
-                // Return user without password
-                const { password: _, ...userWithoutPassword } = user;
-                return {
-                    ...userWithoutPassword,
-                    loginTime: new Date().toISOString()
-                };
+        try {
+            // Get users from storage
+            console.log('validateCredentials: جلب المستخدمين من التخزين');
+            const users = StorageManager.getData(StorageManager.STORAGE_KEYS.USERS) || [];
+            console.log('validateCredentials: عدد المستخدمين:', users.length);
+            
+            // Default admin user if no users exist
+            if (users.length === 0) {
+                console.log('validateCredentials: لا يوجد مستخدمين، إنشاء مستخدم افتراضي');
+                try {
+                    const salt = 'default-salt-' + Math.random().toString(36).substring(2);
+                    console.log('validateCredentials: تشفير كلمة المرور الافتراضية');
+                    const hashedPassword = await this.hashPassword('admin123', salt);
+                    console.log('validateCredentials: تم تشفير كلمة المرور');
+                    
+                    const defaultAdmin = {
+                        id: StorageManager.generateId(),
+                        username: 'admin',
+                        password: hashedPassword,
+                        salt: salt,
+                        name: 'المدير العام',
+                        role: 'admin',
+                        permissions: ['all'],
+                        isActive: true,
+                        createdAt: new Date().toISOString()
+                    };
+                    users.push(defaultAdmin);
+                    console.log('validateCredentials: حفظ المستخدم الافتراضي');
+                    StorageManager.saveData(StorageManager.STORAGE_KEYS.USERS, users);
+                    console.log('validateCredentials: تم حفظ المستخدم الافتراضي');
+                } catch (createUserError) {
+                    console.error('validateCredentials: خطأ في إنشاء المستخدم الافتراضي:', createUserError);
+                    throw createUserError;
+                }
             }
+
+            // Find user
+            console.log('validateCredentials: البحث عن المستخدم');
+            const user = users.find(u => u.username === username && u.isActive);
+            console.log('validateCredentials: المستخدم موجود:', !!user);
+            
+            if (user) {
+                console.log('validateCredentials: التحقق من كلمة المرور');
+                // Check password using new hashing system
+                let passwordMatch = false;
+                
+                try {
+                    if (user.salt) {
+                        console.log('validateCredentials: استخدام التشفير مع salt');
+                        passwordMatch = await this.verifyPassword(password, user.password, user.salt);
+                    } else {
+                        console.log('validateCredentials: استخدام كلمة المرور النصية (fallback)');
+                        // Fallback for old users without salt (plain text password)
+                        passwordMatch = (password === user.password);
+                    }
+                    console.log('validateCredentials: نتيجة مطابقة كلمة المرور:', passwordMatch);
+                } catch (passwordError) {
+                    console.error('validateCredentials: خطأ في التحقق من كلمة المرور:', passwordError);
+                    throw passwordError;
+                }
+
+                if (passwordMatch) {
+                    console.log('validateCredentials: كلمة المرور صحيحة، إرجاع بيانات المستخدم');
+                    // Return user without password
+                    const { password: _, ...userWithoutPassword } = user;
+                    return {
+                        ...userWithoutPassword,
+                        loginTime: new Date().toISOString()
+                    };
+                }
+            }
+            
+            console.log('validateCredentials: فشل التحقق من البيانات');
+            return null;
+            
+        } catch (error) {
+            console.error('validateCredentials: خطأ عام:', error);
+            throw error;
         }
-        
-        return null;
     }
 
     // Save user session
@@ -122,39 +197,65 @@ class AuthManager {
         }, 60000); // Check every minute
     }
 
-    // Hash password (simple implementation)
-    hashPassword(password) {
-        // In production, use a proper hashing library like bcrypt
+    // Hash password using SHA-256 with salt (with fallback for non-HTTPS)
+    async hashPassword(password, salt) {
+        try {
+            // Try to use crypto.subtle if available (HTTPS/localhost)
+            if (window.crypto && window.crypto.subtle) {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password + salt);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            } else {
+                // Fallback: simple hash function for non-HTTPS environments
+                return this.simpleHash(password + salt);
+            }
+        } catch (error) {
+            console.warn('Crypto API not available, using fallback hash:', error);
+            // Fallback: simple hash function
+            return this.simpleHash(password + salt);
+        }
+    }
+    
+    // Simple hash function for fallback (not cryptographically secure, but works)
+    simpleHash(str) {
         let hash = 0;
-        for (let i = 0; i < password.length; i++) {
-            const char = password.charCodeAt(i);
+        if (str.length === 0) return hash.toString();
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
             hash = hash & hash; // Convert to 32-bit integer
         }
-        return hash.toString();
+        return Math.abs(hash).toString(16);
     }
 
     // Verify password
-    verifyPassword(password, hashedPassword) {
-        return this.hashPassword(password) === hashedPassword;
+    async verifyPassword(password, hashedPassword, salt) {
+        const newHash = await this.hashPassword(password, salt);
+        return newHash === hashedPassword;
     }
 
     // Log login attempts
     logLoginAttempt(username, success) {
-        const attempts = JSON.parse(localStorage.getItem('loginAttempts') || '[]');
-        attempts.push({
-            username,
-            success,
-            timestamp: new Date().toISOString(),
-            ip: 'localhost' // In production, get real IP
-        });
-        
-        // Keep only last 100 attempts
-        if (attempts.length > 100) {
-            attempts.splice(0, attempts.length - 100);
+        try {
+            const attempts = JSON.parse(localStorage.getItem('loginAttempts') || '[]');
+            attempts.push({
+                username,
+                success,
+                timestamp: new Date().toISOString(),
+                ip: 'localhost' // In production, get real IP
+            });
+            
+            // Keep only last 100 attempts
+            if (attempts.length > 100) {
+                attempts.splice(0, attempts.length - 100);
+            }
+            
+            localStorage.setItem('loginAttempts', JSON.stringify(attempts));
+        } catch (error) {
+            console.error('خطأ في تسجيل محاولة الدخول:', error);
         }
-        
-        localStorage.setItem('loginAttempts', JSON.stringify(attempts));
     }
 
     // Get current user
@@ -195,7 +296,14 @@ class AuthManager {
         }
 
         // Verify current password
-        if (!this.verifyPassword(currentPassword, users[userIndex].password)) {
+        let currentPasswordValid = false;
+        if (users[userIndex].salt) {
+            currentPasswordValid = await this.verifyPassword(currentPassword, users[userIndex].password, users[userIndex].salt);
+        } else {
+            currentPasswordValid = (currentPassword === users[userIndex].password);
+        }
+        
+        if (!currentPasswordValid) {
             return { success: false, message: 'كلمة المرور الحالية غير صحيحة' };
         }
 
@@ -205,8 +313,10 @@ class AuthManager {
             return { success: false, message: passwordValidation.message };
         }
 
-        // Update password
-        users[userIndex].password = this.hashPassword(newPassword);
+        // Update password with new salt
+        const newSalt = 'user-salt-' + Math.random().toString(36).substring(2);
+        users[userIndex].password = await this.hashPassword(newPassword, newSalt);
+        users[userIndex].salt = newSalt;
         users[userIndex].passwordChangedAt = new Date().toISOString();
         
         if (StorageManager.saveData(StorageManager.STORAGE_KEYS.USERS, users)) {
@@ -258,11 +368,13 @@ class AuthManager {
             return { success: false, message: passwordValidation.message };
         }
 
-        // Create new user
+        // Create new user with salt
+        const salt = 'user-salt-' + Math.random().toString(36).substring(2);
         const newUser = {
             id: StorageManager.generateId(),
             username: userData.username,
-            password: this.hashPassword(userData.password),
+            password: await this.hashPassword(userData.password, salt),
+            salt: salt,
             name: userData.name,
             role: userData.role || 'user',
             permissions: userData.permissions || [],
@@ -313,7 +425,9 @@ class AuthManager {
             if (!passwordValidation.valid) {
                 return { success: false, message: passwordValidation.message };
             }
-            updatedUser.password = this.hashPassword(updateData.password);
+            const newSalt = 'user-salt-' + Math.random().toString(36).substring(2);
+            updatedUser.password = await this.hashPassword(updateData.password, newSalt);
+            updatedUser.salt = newSalt;
         }
 
         users[userIndex] = updatedUser;
@@ -381,5 +495,5 @@ window.AuthManager = authManager;
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = AuthManager;
+    module.exports = authManager;
 }

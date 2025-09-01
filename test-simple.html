@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار النظام المبسط</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .dashboard {
+            display: none;
+            text-align: center;
+        }
+        .dashboard.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>اختبار النظام المبسط لتسجيل الدخول</h2>
+        
+        <!-- Login Form -->
+        <div id="loginSection">
+            <div class="info">
+                <p><strong>بيانات تسجيل الدخول الافتراضية:</strong></p>
+                <p>اسم المستخدم: admin</p>
+                <p>كلمة المرور: admin123</p>
+            </div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">اسم المستخدم:</label>
+                    <input type="text" id="username" value="admin" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">كلمة المرور:</label>
+                    <input type="password" id="password" value="admin123" required>
+                </div>
+                <button type="submit">تسجيل الدخول</button>
+            </form>
+        </div>
+        
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard">
+            <h3>مرحباً <span id="userName"></span>!</h3>
+            <p>تم تسجيل الدخول بنجاح</p>
+            <button onclick="logout()">تسجيل الخروج</button>
+        </div>
+        
+        <!-- Control Buttons -->
+        <div style="margin-top: 20px;">
+            <button onclick="clearData()">مسح البيانات</button>
+            <button onclick="checkSession()">فحص الجلسة</button>
+            <button onclick="toggleLog()">إظهار/إخفاء السجل</button>
+        </div>
+        
+        <div id="result"></div>
+        <div id="log" class="log" style="display: none;"></div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth-simple.js"></script>
+    <script>
+        const logDiv = document.getElementById('log');
+        const resultDiv = document.getElementById('result');
+        const loginSection = document.getElementById('loginSection');
+        const dashboard = document.getElementById('dashboard');
+        const userName = document.getElementById('userName');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function showResult(message, isSuccess = true) {
+            resultDiv.innerHTML = `<div class="result ${isSuccess ? 'success' : 'error'}">${message}</div>`;
+        }
+        
+        // Override console methods to capture logs
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            log(args.join(' '), 'info');
+        };
+        
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            log(args.join(' '), 'error');
+        };
+        
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            log('=== بدء عملية تسجيل الدخول ===');
+            log(`اسم المستخدم: ${username}`);
+            
+            try {
+                const result = await SimpleAuthManager.login(username, password);
+                log(`نتيجة تسجيل الدخول: ${JSON.stringify(result)}`);
+                
+                if (result.success) {
+                    log('تسجيل الدخول ناجح!', 'success');
+                    showResult(`مرحباً ${result.user.name}! تم تسجيل الدخول بنجاح`);
+                    
+                    // Show dashboard
+                    loginSection.style.display = 'none';
+                    dashboard.classList.add('show');
+                    userName.textContent = result.user.name;
+                    
+                } else {
+                    log(`فشل تسجيل الدخول: ${result.message}`, 'error');
+                    showResult(result.message, false);
+                }
+                
+            } catch (error) {
+                log(`خطأ في تسجيل الدخول: ${error.message}`, 'error');
+                showResult(`خطأ: ${error.message}`, false);
+            }
+            
+            log('=== انتهاء عملية تسجيل الدخول ===');
+        });
+        
+        function logout() {
+            SimpleAuthManager.logout();
+            loginSection.style.display = 'block';
+            dashboard.classList.remove('show');
+            showResult('تم تسجيل الخروج بنجاح');
+            log('تم تسجيل الخروج', 'info');
+        }
+        
+        function clearData() {
+            localStorage.clear();
+            showResult('تم مسح جميع البيانات');
+            log('تم مسح جميع البيانات', 'info');
+        }
+        
+        function checkSession() {
+            const isLoggedIn = SimpleAuthManager.checkSession();
+            const currentUser = SimpleAuthManager.getCurrentUser();
+            
+            if (isLoggedIn && currentUser) {
+                showResult(`المستخدم مسجل دخول: ${currentUser.name}`);
+                log(`الجلسة نشطة للمستخدم: ${currentUser.name}`, 'success');
+            } else {
+                showResult('لا يوجد مستخدم مسجل دخول');
+                log('لا توجد جلسة نشطة', 'info');
+            }
+        }
+        
+        function toggleLog() {
+            const isVisible = logDiv.style.display !== 'none';
+            logDiv.style.display = isVisible ? 'none' : 'block';
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            log('تم تحميل الصفحة');
+            log(`StorageManager متوفر: ${typeof StorageManager !== 'undefined'}`);
+            log(`SimpleAuthManager متوفر: ${typeof SimpleAuthManager !== 'undefined'}`);
+            
+            // Check if already logged in
+            if (SimpleAuthManager.checkSession()) {
+                const currentUser = SimpleAuthManager.getCurrentUser();
+                if (currentUser) {
+                    loginSection.style.display = 'none';
+                    dashboard.classList.add('show');
+                    userName.textContent = currentUser.name;
+                    log(`المستخدم مسجل دخول بالفعل: ${currentUser.name}`, 'success');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

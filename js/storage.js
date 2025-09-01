@@ -50,17 +50,8 @@ class StorageManager {
         }
         
         if (!this.getData(this.STORAGE_KEYS.USERS)) {
-            const defaultUsers = [
-                {
-                    id: this.generateId(),
-                    username: 'admin',
-                    name: 'المدير العام',
-                    role: 'admin',
-                    permissions: ['all'],
-                    createdAt: new Date().toISOString()
-                }
-            ];
-            this.saveData(this.STORAGE_KEYS.USERS, defaultUsers);
+            // Don't create default user here - let AuthManager handle it
+            this.saveData(this.STORAGE_KEYS.USERS, []);
         }
         
         if (!this.getData(this.STORAGE_KEYS.SETTINGS)) {

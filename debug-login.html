@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تشخيص مشكلة تسجيل الدخول</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .debug-log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        .info {
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>تشخيص مشكلة تسجيل الدخول</h2>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">اسم المستخدم:</label>
+                <input type="text" id="username" value="admin" required>
+            </div>
+            <div class="form-group">
+                <label for="password">كلمة المرور:</label>
+                <input type="password" id="password" value="admin123" required>
+            </div>
+            <button type="submit">تسجيل الدخول</button>
+        </form>
+        
+        <button onclick="clearStorage()">مسح البيانات</button>
+        <button onclick="checkStorage()">فحص البيانات المحفوظة</button>
+        <button onclick="clearLog()">مسح السجل</button>
+        
+        <div id="debugLog" class="debug-log"></div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const debugLog = document.getElementById('debugLog');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            debugLog.appendChild(logEntry);
+            debugLog.scrollTop = debugLog.scrollHeight;
+            
+            // Also log to console
+            if (type === 'error') {
+                console.error(message);
+            } else {
+                console.log(message);
+            }
+        }
+        
+        // Override console methods to capture all logs
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+        
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            log(args.join(' '), 'info');
+        };
+        
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            log(args.join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalConsoleWarn.apply(console, args);
+            log(args.join(' '), 'error');
+        };
+        
+        // Capture unhandled errors
+        window.addEventListener('error', function(e) {
+            log(`Unhandled Error: ${e.message} at ${e.filename}:${e.lineno}:${e.colno}`, 'error');
+        });
+        
+        window.addEventListener('unhandledrejection', function(e) {
+            log(`Unhandled Promise Rejection: ${e.reason}`, 'error');
+        });
+        
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            log('=== بدء عملية تسجيل الدخول ===');
+            log(`اسم المستخدم: ${username}`);
+            log(`كلمة المرور: ${password}`);
+            
+            try {
+                log('استدعاء AuthManager.login...');
+                
+                // Check if AuthManager exists
+                if (typeof AuthManager === 'undefined') {
+                    log('خطأ: AuthManager غير معرف!', 'error');
+                    return;
+                }
+                
+                log('AuthManager موجود، بدء عملية تسجيل الدخول...');
+                
+                const result = await AuthManager.login(username, password);
+                
+                log(`نتيجة تسجيل الدخول: ${JSON.stringify(result)}`, 'success');
+                
+                if (result && result.success) {
+                    log('تسجيل الدخول ناجح!', 'success');
+                    log(`مرحباً ${result.user.name}`, 'success');
+                } else {
+                    log(`فشل تسجيل الدخول: ${result ? result.message : 'نتيجة غير صحيحة'}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`خطأ في تسجيل الدخول: ${error.message}`, 'error');
+                log(`Stack trace: ${error.stack}`, 'error');
+            }
+            
+            log('=== انتهاء عملية تسجيل الدخول ===');
+        });
+        
+        function clearStorage() {
+            localStorage.clear();
+            log('تم مسح جميع البيانات المحفوظة', 'success');
+        }
+        
+        function checkStorage() {
+            log('=== فحص البيانات المحفوظة ===');
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                log(`${key}: ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}`);
+            }
+            
+            log('=== انتهاء فحص البيانات ===');
+        }
+        
+        function clearLog() {
+            debugLog.innerHTML = '';
+        }
+        
+        // Initialize
+        log('تم تحميل الصفحة');
+        log(`StorageManager متوفر: ${typeof StorageManager !== 'undefined'}`);
+        log(`AuthManager متوفر: ${typeof AuthManager !== 'undefined'}`);
+        
+        // Check if there are any immediate errors
+        setTimeout(() => {
+            try {
+                if (typeof StorageManager !== 'undefined') {
+                    log('اختبار StorageManager...');
+                    const testData = StorageManager.getData('test');
+                    log('StorageManager يعمل بشكل صحيح');
+                }
+                
+                if (typeof AuthManager !== 'undefined') {
+                    log('اختبار AuthManager...');
+                    const currentUser = AuthManager.getCurrentUser();
+                    log(`المستخدم الحالي: ${currentUser ? currentUser.name : 'لا يوجد'}`);
+                }
+            } catch (error) {
+                log(`خطأ في الاختبار الأولي: ${error.message}`, 'error');
+            }
+        }, 100);
+    </script>
+</body>
+</html>

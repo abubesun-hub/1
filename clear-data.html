@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مسح البيانات</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 12px 20px;
+            margin: 10px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #c82333;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>مسح البيانات المحفوظة</h2>
+        <div class="info">
+            <p>هذه الصفحة تساعدك على مسح جميع البيانات المحفوظة في المتصفح والبدء من جديد.</p>
+            <p>سيتم إنشاء مستخدم افتراضي جديد:</p>
+            <ul>
+                <li>اسم المستخدم: admin</li>
+                <li>كلمة المرور: admin123</li>
+            </ul>
+        </div>
+        
+        <button onclick="clearAllData()">مسح جميع البيانات</button>
+        <button onclick="showCurrentData()">عرض البيانات الحالية</button>
+        <button onclick="testLogin()">اختبار تسجيل الدخول</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        function clearAllData() {
+            if (confirm('هل أنت متأكد من حذف جميع البيانات؟ هذا الإجراء لا يمكن التراجع عنه.')) {
+                localStorage.clear();
+                document.getElementById('result').innerHTML = '<div class="success">تم مسح جميع البيانات بنجاح. يمكنك الآن العودة إلى الصفحة الرئيسية وتسجيل الدخول.</div>';
+            }
+        }
+        
+        function showCurrentData() {
+            const users = localStorage.getItem('accounting_users');
+            const resultDiv = document.getElementById('result');
+            
+            if (users) {
+                const parsedUsers = JSON.parse(users);
+                resultDiv.innerHTML = `
+                    <div class="info">
+                        <h3>المستخدمون المحفوظون:</h3>
+                        <pre>${JSON.stringify(parsedUsers, null, 2)}</pre>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = '<div class="info">لا توجد بيانات مستخدمين محفوظة.</div>';
+            }
+        }
+        
+        async function testLogin() {
+            try {
+                const result = await AuthManager.login('admin', 'admin123');
+                const resultDiv = document.getElementById('result');
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>تسجيل الدخول ناجح!</h3>
+                            <p>مرحباً ${result.user.name}</p>
+                            <p>الدور: ${result.user.role}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>فشل تسجيل الدخول</h3>
+                            <p>${result.message}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <div class="error">
+                        <h3>حدث خطأ أثناء تسجيل الدخول</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

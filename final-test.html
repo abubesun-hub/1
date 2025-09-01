@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الاختبار النهائي</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .log { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .result.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .result.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>الاختبار النهائي لمشكلة تسجيل الدخول</h1>
+        
+        <div>
+            <button onclick="clearAllData()">1. مسح جميع البيانات</button>
+            <button onclick="testStorageManager()">2. اختبار StorageManager</button>
+            <button onclick="testAuthManager()">3. اختبار AuthManager</button>
+            <button onclick="testLogin()">4. اختبار تسجيل الدخول</button>
+            <button onclick="clearLog()">مسح السجل</button>
+        </div>
+        
+        <div id="result"></div>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const logDiv = document.getElementById('log');
+        const resultDiv = document.getElementById('result');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            if (type === 'error') {
+                console.error(message);
+            } else {
+                console.log(message);
+            }
+        }
+        
+        function showResult(message, isSuccess = true) {
+            resultDiv.innerHTML = `<div class="result ${isSuccess ? 'success' : 'error'}">${message}</div>`;
+        }
+        
+        // Override console methods
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            log(args.join(' '), 'info');
+        };
+        
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            log(args.join(' '), 'error');
+        };
+        
+        // Capture errors
+        window.addEventListener('error', function(e) {
+            log(`خطأ غير معالج: ${e.message} في ${e.filename}:${e.lineno}`, 'error');
+        });
+        
+        window.addEventListener('unhandledrejection', function(e) {
+            log(`Promise مرفوض: ${e.reason}`, 'error');
+        });
+        
+        function clearAllData() {
+            try {
+                localStorage.clear();
+                log('تم مسح جميع البيانات من localStorage', 'success');
+                showResult('تم مسح جميع البيانات بنجاح');
+            } catch (error) {
+                log(`خطأ في مسح البيانات: ${error.message}`, 'error');
+                showResult(`خطأ في مسح البيانات: ${error.message}`, false);
+            }
+        }
+        
+        function testStorageManager() {
+            log('=== اختبار StorageManager ===');
+            
+            try {
+                if (typeof StorageManager === 'undefined') {
+                    log('StorageManager غير معرف!', 'error');
+                    showResult('StorageManager غير معرف!', false);
+                    return;
+                }
+                
+                log('StorageManager معرف بشكل صحيح', 'success');
+                
+                // Test basic functionality
+                StorageManager.saveData('test_key', { test: 'value' });
+                const testData = StorageManager.getData('test_key');
+                
+                if (testData && testData.test === 'value') {
+                    log('StorageManager يعمل بشكل صحيح', 'success');
+                    showResult('StorageManager يعمل بشكل صحيح');
+                } else {
+                    log('StorageManager لا يعمل بشكل صحيح', 'error');
+                    showResult('StorageManager لا يعمل بشكل صحيح', false);
+                }
+                
+            } catch (error) {
+                log(`خطأ في اختبار StorageManager: ${error.message}`, 'error');
+                showResult(`خطأ في اختبار StorageManager: ${error.message}`, false);
+            }
+        }
+        
+        function testAuthManager() {
+            log('=== اختبار AuthManager ===');
+            
+            try {
+                if (typeof AuthManager === 'undefined') {
+                    log('AuthManager غير معرف!', 'error');
+                    showResult('AuthManager غير معرف!', false);
+                    return;
+                }
+                
+                log('AuthManager معرف بشكل صحيح', 'success');
+                log(`نوع AuthManager: ${typeof AuthManager}`, 'info');
+                
+                // Test if it has login method
+                if (typeof AuthManager.login === 'function') {
+                    log('دالة login موجودة', 'success');
+                    showResult('AuthManager يحتوي على دالة login');
+                } else {
+                    log('دالة login غير موجودة!', 'error');
+                    showResult('AuthManager لا يحتوي على دالة login!', false);
+                }
+                
+            } catch (error) {
+                log(`خطأ في اختبار AuthManager: ${error.message}`, 'error');
+                showResult(`خطأ في اختبار AuthManager: ${error.message}`, false);
+            }
+        }
+        
+        async function testLogin() {
+            log('=== اختبار تسجيل الدخول ===');
+            
+            try {
+                if (typeof AuthManager === 'undefined') {
+                    log('AuthManager غير معرف!', 'error');
+                    showResult('AuthManager غير معرف!', false);
+                    return;
+                }
+                
+                log('بدء اختبار تسجيل الدخول...');
+                log('اسم المستخدم: admin');
+                log('كلمة المرور: admin123');
+                
+                const result = await AuthManager.login('admin', 'admin123');
+                
+                log(`نتيجة تسجيل الدخول: ${JSON.stringify(result, null, 2)}`);
+                
+                if (result && result.success) {
+                    log('تسجيل الدخول ناجح!', 'success');
+                    showResult(`تسجيل الدخول ناجح! مرحباً ${result.user.name}`);
+                } else {
+                    log(`فشل تسجيل الدخول: ${result ? result.message : 'نتيجة غير صحيحة'}`, 'error');
+                    showResult(`فشل تسجيل الدخول: ${result ? result.message : 'نتيجة غير صحيحة'}`, false);
+                }
+                
+            } catch (error) {
+                log(`خطأ في تسجيل الدخول: ${error.message}`, 'error');
+                log(`تفاصيل الخطأ: ${error.stack}`, 'error');
+                showResult(`خطأ في تسجيل الدخول: ${error.message}`, false);
+            }
+        }
+        
+        function clearLog() {
+            logDiv.innerHTML = '';
+            resultDiv.innerHTML = '';
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            log('تم تحميل الصفحة');
+            log(`StorageManager متوفر: ${typeof StorageManager !== 'undefined'}`);
+            log(`AuthManager متوفر: ${typeof AuthManager !== 'undefined'}`);
+            
+            if (typeof AuthManager !== 'undefined') {
+                log(`AuthManager هو: ${AuthManager.constructor.name}`);
+            }
+        });
+    </script>
+</body>
+</html>

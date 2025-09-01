@@ -101,7 +101,7 @@
         <div id="successMsg" class="success"></div>
         <div id="errorMsg" class="error"></div>
 
-        <button class="btn" onclick="clearAllData()">🗑️ مسح جميع البيانات وإعادة التعيين</button>
+        <button class="btn" onclick="clearAllData().catch(e => showMessage('حدث خطأ: ' + e.message, 'error'))">🗑️ مسح جميع البيانات وإعادة التعيين</button>
         
         <button class="btn" onclick="resetUsers()">👤 إعادة تعيين المستخدمين الافتراضيين</button>
         
@@ -109,18 +109,28 @@
 
         <div class="login-test">
             <h3>اختبار تسجيل الدخول:</h3>
-            <label for="testUsername">اسم المستخدم:</label>
-            <input type="text" id="testUsername" value="admin" placeholder="admin">
-            
-            <label for="testPassword">كلمة المرور:</label>
-            <input type="password" id="testPassword" value="admin123" placeholder="admin123">
-            
-            <button class="btn" onclick="testLogin()">🔐 اختبار تسجيل الدخول</button>
+            <form id="loginForm" onsubmit="event.preventDefault(); testLogin();">
+                <label for="testUsername">اسم المستخدم:</label>
+                <input type="text" id="testUsername" value="admin" placeholder="admin" required aria-required="true">
+                
+                <label for="testPassword">كلمة المرور:</label>
+                <input type="password" id="testPassword" value="admin123" placeholder="admin123" required aria-required="true">
+                
+                <button id="loginBtn" class="btn" type="submit">
+                    <span id="loginText">🔐 اختبار تسجيل الدخول</span>
+                    <span id="loginSpinner" style="display:none;">⌛ جاري المعالجة...</span>
+                </button>
+            </form>
         </div>
 
-        <button class="btn" onclick="goToMainSystem()" style="background: #4CAF50;">
-            ✅ الذهاب إلى النظام الرئيسي
-        </button>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button class="btn" onclick="goToMainSystem()" style="background: #4CAF50;">
+                ✅ الذهاب إلى النظام الرئيسي
+            </button>
+            <button class="btn" onclick="logout()" style="background: #f44336;">
+                🚪 تسجيل الخروج
+            </button>
+        </div>
     </div>
 
     <script>
@@ -140,26 +150,26 @@
             }
         }
 
-        function clearAllData() {
+        async function clearAllData() {
             try {
                 localStorage.clear();
-                showMessage('تم مسح جميع البيانات بنجاح!', 'success');
-                setTimeout(() => {
-                    resetUsers();
-                }, 1000);
+                sessionStorage.clear();
+                showMessage('تم مسح جميع البيانات وجلسات المستخدمين بنجاح!', 'success');
+                await resetUsers();
             } catch (error) {
                 showMessage('خطأ في مسح البيانات: ' + error.message, 'error');
             }
         }
 
-        function resetUsers() {
+        async function resetUsers() {
             try {
                 // إنشاء المستخدمين الافتراضيين
                 const defaultUsers = [
                     {
                         id: 'admin-001',
                         username: 'admin',
-                        password: hashPassword('admin123'),
+                        password: await hashPassword('admin123', 'salt-admin'),
+                        salt: 'salt-admin',
                         name: 'المدير العام',
                         role: 'admin',
                         permissions: ['all'],
@@ -169,7 +179,8 @@
                     {
                         id: 'manager-001',
                         username: 'manager',
-                        password: hashPassword('manager123'),
+                        password: await hashPassword('manager123', 'salt-manager'),
+                        salt: 'salt-manager',
                         name: 'مدير القسم',
                         role: 'manager',
                         permissions: ['capital', 'expenses', 'reports', 'users'],
@@ -179,7 +190,8 @@
                     {
                         id: 'accountant-001',
                         username: 'accountant',
-                        password: hashPassword('acc123'),
+                        password: await hashPassword('acc123', 'salt-accountant'),
+                        salt: 'salt-accountant',
                         name: 'المحاسب',
                         role: 'accountant',
                         permissions: ['capital', 'expenses', 'reports'],
@@ -203,17 +215,36 @@
             }
         }
 
-        function hashPassword(password) {
-            let hash = 0;
-            for (let i = 0; i < password.length; i++) {
-                const char = password.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
+        async function hashPassword(password, salt) {
+            try {
+                // Validate inputs
+                if (!password || password.length === 0) {
+                    throw new Error('كلمة المرور فارغة');
+                }
+                if (!salt || salt.length === 0) {
+                    throw new Error('الملح فارغ');
+                }
+                
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password + salt);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                
+                console.log('تجزئة كلمة المرور:', {
+                    password,
+                    salt,
+                    hash: hashHex
+                });
+                
+                return hashHex;
+            } catch (error) {
+                console.error('خطأ في تجزئة كلمة المرور:', error);
+                throw error;
             }
-            return hash.toString();
         }
 
-        function checkCurrentData() {
+        async function checkCurrentData() {
             try {
                 const users = localStorage.getItem('accounting_users');
                 if (!users) {
@@ -222,51 +253,115 @@
                 }
 
                 const decryptedUsers = JSON.parse(decodeURIComponent(escape(atob(users))));
-                showMessage(`تم العثور على ${decryptedUsers.length} مستخدم في النظام`, 'success');
+                
+                // تحويل كلمات المرور القديمة إلى النظام الجديد
+                let convertedCount = 0;
+                for (const user of decryptedUsers) {
+                    if (!user.salt && user.password.length < 64) {
+                        const salt = 'converted-salt-' + Math.random().toString(36).substring(2);
+                        user.salt = salt;
+                        user.password = await hashPassword(user.password, salt);
+                        convertedCount++;
+                    }
+                }
+                
+                if (convertedCount > 0) {
+                    const encryptedUsers = btoa(unescape(encodeURIComponent(JSON.stringify(decryptedUsers))));
+                    localStorage.setItem('accounting_users', encryptedUsers);
+                    showMessage(`تم تحويل ${convertedCount} مستخدم إلى نظام التجزئة الجديد`, 'success');
+                } else {
+                    showMessage(`تم العثور على ${decryptedUsers.length} مستخدم في النظام (جميعهم محدثون)`, 'success');
+                }
+                
                 console.log('المستخدمون الحاليون:', decryptedUsers);
             } catch (error) {
                 showMessage('خطأ في قراءة البيانات: ' + error.message, 'error');
             }
         }
 
-        function testLogin() {
-            const username = document.getElementById('testUsername').value;
-            const password = document.getElementById('testPassword').value;
+        async function testLogin() {
+            const username = document.getElementById('testUsername').value.trim();
+            const password = document.getElementById('testPassword').value.trim();
+            
+            // التحقق من المدخلات الفارغة
+            if (!username || !password) {
+                showMessage('يرجى إدخال اسم المستخدم وكلمة المرور', 'error');
+                return;
+            }
+            
+            // عرض مؤشر التحميل
+            const loginBtn = document.getElementById('loginBtn');
+            const loginText = document.getElementById('loginText');
+            const loginSpinner = document.getElementById('loginSpinner');
+            loginText.style.display = 'none';
+            loginSpinner.style.display = 'inline';
+            loginBtn.disabled = true;
 
             try {
+                console.log('بدء محاولة تسجيل الدخول:', { username });
                 const users = localStorage.getItem('accounting_users');
+                
                 if (!users) {
+                    console.error('لا توجد بيانات مستخدمين في localStorage');
                     showMessage('لا توجد بيانات مستخدمين. اضغط "إعادة تعيين المستخدمين" أولاً', 'error');
                     return;
                 }
 
                 const decryptedUsers = JSON.parse(decodeURIComponent(escape(atob(users))));
+                console.log('المستخدمون المفكوكون:', decryptedUsers);
+                
                 const user = decryptedUsers.find(u => u.username === username);
                 
                 if (!user) {
-                    showMessage('اسم المستخدم غير موجود', 'error');
+                    console.error('المستخدم غير موجود:', username);
+                    showMessage('اسم المستخدم غير موجود. الرجاء التأكد من المعلومات المدخلة', 'error');
                     return;
                 }
+                
+                console.log('تم العثور على المستخدم:', user);
 
-                const hashedPassword = hashPassword(password);
+                const hashedPassword = await hashPassword(password, user.salt);
+                console.log('كلمة المرور المدخلة:', password);
+                console.log('كلمة المرور المشفرة المدخلة:', hashedPassword);
+                console.log('كلمة المرور المخزنة:', user.password);
+                
                 if (user.password === hashedPassword) {
-                    showMessage('نجح تسجيل الدخول! ✅', 'success');
+                    console.log('كلمة المرور صحيحة');
+                    showMessage('نجح تسجيل الدخول! ✅ سيتم تحويلك إلى النظام الرئيسي خلال ثوانٍ', 'success');
                     
                     // حفظ جلسة المستخدم
                     const sessionUser = { ...user };
                     delete sessionUser.password;
-                    localStorage.setItem('currentUser', JSON.stringify(sessionUser));
-                    localStorage.setItem('sessionStart', Date.now().toString());
+                    delete sessionUser.salt;
+                    sessionStorage.setItem('currentUser', JSON.stringify(sessionUser));
+                    sessionStorage.setItem('sessionStart', Date.now().toString());
+                    
+                    // الانتقال إلى النظام بعد تأخير قصير
+                    setTimeout(() => {
+                        goToMainSystem();
+                    }, 2000);
                 } else {
-                    showMessage('كلمة المرور غير صحيحة', 'error');
+                    console.error('كلمة المرور غير متطابقة');
+                    showMessage('كلمة المرور غير صحيحة. الرجاء التأكد من المعلومات المدخلة', 'error');
                 }
             } catch (error) {
-                showMessage('خطأ في اختبار تسجيل الدخول: ' + error.message, 'error');
+                console.error('حدث خطأ أثناء تسجيل الدخول:', error);
+                showMessage('حدث خطأ أثناء تسجيل الدخول: ' + error.message, 'error');
+            } finally {
+                // إعادة عرض الزر وإخفاء المؤشر
+                loginText.style.display = 'inline';
+                loginSpinner.style.display = 'none';
+                loginBtn.disabled = false;
             }
         }
 
         function goToMainSystem() {
             window.location.href = 'index.html';
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            showMessage('تم تسجيل الخروج بنجاح', 'success');
         }
 
         // تشغيل تلقائي عند تحميل الصفحة
