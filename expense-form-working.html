@@ -79,6 +79,7 @@
             </div>
             
             <div class="card-body p-4">
+                <div id="alertArea" class="mb-3"></div>
                 <form id="expenseForm">
                     <div class="row">
                         <!-- رقم القيد والتاريخ -->
@@ -152,13 +153,6 @@
                             </label>
                             <select class="form-control" id="accountingGuide" required>
                                 <option value="">اختر من الدليل المحاسبي</option>
-                                <option value="5101">5101 - الأسمنت</option>
-                                <option value="5102">5102 - الحديد والصلب</option>
-                                <option value="5103">5103 - الرمل والحصى</option>
-                                <option value="5201">5201 - أجور العمال المهرة</option>
-                                <option value="5202">5202 - أجور العمال العاديين</option>
-                                <option value="5301">5301 - إيجار المعدات الثقيلة</option>
-                                <option value="5302">5302 - صيانة المعدات</option>
                             </select>
                         </div>
 
@@ -168,7 +162,8 @@
                                 <i class="bi bi-person text-secondary me-2"></i>المستفيد
                             </label>
                             <input type="text" class="form-control" id="beneficiary" 
-                                   placeholder="اسم المستفيد...">
+                                   placeholder="اسم المستفيد..." list="beneficiaryList">
+                            <datalist id="beneficiaryList"></datalist>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">
@@ -185,6 +180,12 @@
                             </label>
                             <input type="text" class="form-control" id="receiptNumber" 
                                    placeholder="رقم الوصل...">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-calendar-check text-dark me-2"></i>تاريخ الوصل
+                            </label>
+                            <input type="date" class="form-control" id="receiptDate">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">
@@ -275,12 +276,123 @@
         <!-- Print content will be generated here -->
     </div>
 
+    <script src="js/storage.js"></script>
     <script>
         // تهيئة النموذج
         document.addEventListener('DOMContentLoaded', function() {
             generateRegistrationNumber();
             setCurrentDate();
+            populateAccountingGuide();
+            loadBeneficiarySuggestions();
+            const guideSelect = document.getElementById('accountingGuide');
+            if (guideSelect) {
+                guideSelect.addEventListener('change', updateCategoryFromGuide);
+            }
         });
+
+        // عرض تنبيهات محسنة
+        function showAlert(type, message) {
+            const area = document.getElementById('alertArea');
+            if (!area) return;
+            area.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>`;
+            area.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // اقتراحات المستفيد من السجلات السابقة
+        function loadBeneficiarySuggestions() {
+            try {
+                const list = document.getElementById('beneficiaryList');
+                if (!list) return;
+                const expenses = StorageManager.getData(StorageManager.STORAGE_KEYS.EXPENSES) || [];
+                const names = [...new Set(expenses.map(e => e.beneficiary).filter(Boolean))].slice(0, 50);
+                list.innerHTML = '';
+                names.forEach(name => {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    list.appendChild(opt);
+                });
+            } catch (e) {
+                console.warn('تعذر تحميل اقتراحات المستفيد:', e);
+            }
+        }
+
+        // ضبط الفئة تلقائياً من الدليل المحاسبي
+        function updateCategoryFromGuide() {
+            const select = document.getElementById('accountingGuide');
+            const categorySelect = document.getElementById('category');
+            if (!select || !categorySelect) return;
+            const opt = select.options[select.selectedIndex];
+            const guideId = opt?.value;
+            if (!guideId) return;
+            // ابحث في الدليل المخزن عن نفس العنصر
+            const guide = StorageManager.getData(StorageManager.STORAGE_KEYS.ACCOUNTING_GUIDE) || [];
+            const found = guide.find(g => g.id === guideId);
+            if (found?.category) {
+                // إن كانت الفئة موجودة ضمن قائمة الفئات فاخترها
+                const options = Array.from(categorySelect.options);
+                const match = options.find(o => o.value === found.category);
+                if (match) {
+                    categorySelect.value = found.category;
+                }
+            }
+        }
+
+        // تحميل الدليل المحاسبي من التخزين المحلي وملء القائمة المنسدلة
+        function populateAccountingGuide() {
+            try {
+                const guide = StorageManager.getData(StorageManager.STORAGE_KEYS.ACCOUNTING_GUIDE) || [];
+                const select = document.getElementById('accountingGuide');
+                if (!select) return;
+
+                // احتفظ بالخيار الأول فقط
+                select.innerHTML = '<option value="">اختر من الدليل المحاسبي</option>';
+
+                if (guide.length === 0) {
+                    // في حال عدم وجود دليل، أضف بعض الخيارات الافتراضية كحل مؤقت
+                    const fallback = [
+                        { id: 'guide001', code: '5101', name: 'الأسمنت' },
+                        { id: 'guide002', code: '5102', name: 'الحديد والصلب' },
+                        { id: 'guide003', code: '5103', name: 'الرمل والحصى' }
+                    ];
+                    fallback.forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.textContent = `${item.code} - ${item.name}`;
+                        opt.dataset.code = item.code;
+                        opt.dataset.name = item.name;
+                        select.appendChild(opt);
+                    });
+                    return;
+                }
+
+                // تجميع حسب الفئة
+                const grouped = guide.reduce((acc, item) => {
+                    const cat = item.category || 'أخرى';
+                    if (!acc[cat]) acc[cat] = [];
+                    acc[cat].push(item);
+                    return acc;
+                }, {});
+
+                Object.keys(grouped).forEach(category => {
+                    const groupEl = document.createElement('optgroup');
+                    groupEl.label = category;
+                    grouped[category].forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.textContent = `${item.code} - ${item.name}`;
+                        opt.dataset.code = item.code;
+                        opt.dataset.name = item.name;
+                        select.appendChild(opt);
+                    });
+                    select.appendChild(groupEl);
+                });
+            } catch (e) {
+                console.error('خطأ في تحميل الدليل المحاسبي:', e);
+            }
+        }
 
         // إنشاء رقم القيد
         function generateRegistrationNumber() {
@@ -367,6 +479,7 @@
                             <tr><td><strong>المبلغ بالدولار:</strong></td><td class="text-success">$${data.amountUSD.toFixed(2)}</td></tr>
                             <tr><td><strong>سعر الصرف:</strong></td><td>${data.exchangeRate}</td></tr>
                             <tr><td><strong>رقم الوصل:</strong></td><td>${data.receiptNumber || 'غير محدد'}</td></tr>
+                            <tr><td><strong>تاريخ الوصل:</strong></td><td>${data.receiptDate || 'غير محدد'}</td></tr>
                             <tr><td><strong>طريقة الدفع:</strong></td><td>${getPaymentMethodText(data.paymentMethod)}</td></tr>
                         </table>
                     </div>
@@ -416,9 +529,14 @@
                     <tr><th>البيان</th><td colspan="3">${data.description}</td></tr>
                     <tr><th>المبلغ بالدينار</th><td class="amount" style="color: #d63384;">${data.amountIQD.toLocaleString()} د.ع</td><th>المبلغ بالدولار</th><td class="amount" style="color: #198754;">$${data.amountUSD.toFixed(2)}</td></tr>
                     <tr><th>سعر الصرف</th><td>${data.exchangeRate}</td><th>طريقة الدفع</th><td>${getPaymentMethodText(data.paymentMethod)}</td></tr>
-                    <tr><th>الدليل المحاسبي</th><td colspan="3">${data.accountingGuide}</td></tr>
+                    <tr><th>الدليل المحاسبي</th><td colspan="3">${(function(){
+                        const g = StorageManager.getData(StorageManager.STORAGE_KEYS.ACCOUNTING_GUIDE) || [];
+                        const f = g.find(x => x.id === data.accountingGuide);
+                        return f ? `${f.code} - ${f.name}` : data.accountingGuide;
+                    })()}</td></tr>
                     <tr><th>المستفيد</th><td>${data.beneficiary || 'غير محدد'}</td><th>المورد</th><td>${data.vendor || 'غير محدد'}</td></tr>
-                    <tr><th>رقم الوصل</th><td>${data.receiptNumber || 'غير محدد'}</td><th>الفئة</th><td>${data.category}</td></tr>
+                    <tr><th>رقم الوصل</th><td>${data.receiptNumber || 'غير محدد'}</td><th>تاريخ الوصل</th><td>${data.receiptDate || 'غير محدد'}</td></tr>
+                    <tr><th>الفئة</th><td>${data.category}</td><th>المشروع</th><td>${data.project || 'غير محدد'}</td></tr>
                     ${data.notes ? `<tr><th>الملاحظات</th><td colspan="3">${data.notes}</td></tr>` : ''}
                 </table>
                 
@@ -453,25 +571,36 @@
             const beneficiary = document.getElementById('beneficiary').value;
             const vendor = document.getElementById('vendor').value;
             const receiptNumber = document.getElementById('receiptNumber').value;
+            const receiptDate = document.getElementById('receiptDate').value;
             const paymentMethod = document.getElementById('paymentMethod').value;
             const category = document.getElementById('category').value;
             const project = document.getElementById('project').value;
             const notes = document.getElementById('notes').value;
 
             if (!registrationNumber || !date || !description || !accountingGuide || !category) {
-                alert('يرجى ملء جميع الحقول المطلوبة');
+                showAlert('danger', 'يرجى ملء جميع الحقول المطلوبة: رقم القيد، التاريخ، البيان، الدليل المحاسبي، الفئة.');
                 return null;
             }
 
             if (amountIQD === 0 && amountUSD === 0) {
-                alert('يرجى إدخال مبلغ المصروف');
+                showAlert('warning', 'يرجى إدخال مبلغ المصروف بالدينار أو الدولار.');
+                return null;
+            }
+
+            if (amountUSD > 0 && exchangeRate <= 0) {
+                showAlert('warning', 'سعر الصرف غير صالح.');
+                return null;
+            }
+
+            if (receiptNumber && !/^[\w\-\/]+$/.test(receiptNumber)) {
+                showAlert('warning', 'تنسيق رقم الوصل غير صالح.');
                 return null;
             }
 
             return {
                 registrationNumber, date, amountIQD, amountUSD, exchangeRate,
                 description, accountingGuide, beneficiary, vendor, receiptNumber,
-                paymentMethod, category, project, notes
+                receiptDate, paymentMethod, category, project, notes
             };
         }
 
@@ -490,16 +619,46 @@
         document.getElementById('expenseForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const data = getFormData();
-            if (data) {
-                alert('تم حفظ المصروف بنجاح!\n\nرقم القيد: ' + data.registrationNumber + '\nالمبلغ: ' + data.amountIQD + ' د.ع / $' + data.amountUSD);
-                
+            if (!data) return;
+
+            // خرائط مساعدة لعرض نص الدليل بدل المعرف
+            const guide = StorageManager.getData(StorageManager.STORAGE_KEYS.ACCOUNTING_GUIDE) || [];
+            const found = guide.find(g => g.id === data.accountingGuide);
+            const guideText = found ? `${found.code} - ${found.name}` : data.accountingGuide;
+
+            const saved = StorageManager.addExpenseEntry({
+                date: data.date,
+                registrationNumber: data.registrationNumber,
+                amountIQD: data.amountIQD,
+                amountUSD: data.amountUSD,
+                exchangeRate: data.exchangeRate,
+                description: data.description,
+                accountingGuideId: data.accountingGuide,
+                accountingGuideText: guideText,
+                beneficiary: data.beneficiary,
+                vendor: data.vendor,
+                receiptNumber: data.receiptNumber,
+                receiptDate: data.receiptDate,
+                paymentMethod: data.paymentMethod,
+                category: data.category,
+                project: data.project,
+                notes: data.notes
+            });
+
+            if (saved) {
+                showAlert('success', `تم حفظ المصروف بنجاح! رقم القيد: ${saved.registrationNumber}`);
+                // تحديث اقتراحات المستفيد
+                loadBeneficiarySuggestions();
+
                 // إعادة تعيين النموذج
-                this.reset();
+                e.target.reset();
                 generateRegistrationNumber();
                 setCurrentDate();
                 document.getElementById('exchangeRate').value = '1500';
                 updateCurrencyDisplay();
                 document.getElementById('previewArea').style.display = 'none';
+            } else {
+                showAlert('danger', 'حدث خطأ أثناء حفظ المصروف.');
             }
         });
 

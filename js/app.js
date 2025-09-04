@@ -196,10 +196,16 @@ class AccountingApp {
     }
 
     loadCapitalSection() {
-        // Capital section is handled by CapitalManager
-        if (window.capitalManager) {
-            window.capitalManager.loadCapitalSection();
+        // Ensure CapitalManager exists then load section
+        if (!window.capitalManager) {
+            try {
+                window.capitalManager = new CapitalManager();
+            } catch (error) {
+                console.error('Error creating CapitalManager:', error);
+                return;
+            }
         }
+        window.capitalManager.loadCapitalSection();
     }
 
     loadExpensesSection() {

@@ -425,6 +425,29 @@ class CapitalManager {
         this.setupSearchForm();
     }
 
+    // Set up search form events
+    setupSearchForm() {
+        const form = document.getElementById('searchForm');
+        if (!form) return;
+
+        // Prevent default submit and run search
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.performSearch();
+        });
+
+        // Enter key on inputs triggers search consistently
+        const inputs = form.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.performSearch();
+                }
+            });
+        });
+    }
+
     // Calculate capital statistics
     calculateCapitalStats(data) {
         const stats = {

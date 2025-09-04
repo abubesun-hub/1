@@ -111,6 +111,24 @@ class ExpensesManager {
         }
     }
 
+    // Helper: render recent expenses list (used in both overview and add views)
+    renderRecentExpensesList(expenses) {
+        if (!Array.isArray(expenses) || expenses.length === 0) {
+            return '<p class="text-center text-muted">لا توجد مصروفات حديثة</p>';
+        }
+        const sorted = expenses.slice().sort((a, b) => (new Date(b.date)) - (new Date(a.date)));
+        return `
+            <ul class="list-group">
+                ${sorted.slice(0, 5).map(exp => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>${exp.description || 'بدون وصف'}<br><small class="text-muted">${new Date(exp.date).toLocaleDateString('ar-IQ')}</small></span>
+                        <span class="badge bg-secondary">${this.formatCurrency(exp.amount || exp.amountUSD || exp.amountIQD || 0, exp.currency || (exp.amountUSD ? 'USD' : 'IQD'))}</span>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    }
+
     // Load overview view
     loadOverviewView() {
         const data = StorageManager.getAllData();
@@ -183,7 +201,7 @@ class ExpensesManager {
                         </div>
                         <div class="card-body">
                             <div id="recentExpenses">
-                                ${this.renderRecentExpenses(data.expenses || [])}
+                                ${this.renderRecentExpensesList(data.expenses || [])}
                             </div>
                         </div>
                     </div>
@@ -242,6 +260,7 @@ class ExpensesManager {
                             </label>
                             <input type="number" class="form-control neumorphic-input" id="expenseAmountIQD"
                                    step="1" min="0" placeholder="0" onchange="expensesManager.calculateCurrency('IQD')">
+                            <small class="text-muted">أدخل بالدينار بشكل مستقل. لن يتم التغيير تلقائياً إلا إذا فعّلت التحويل.</small>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="expenseAmountUSD" class="form-label">
@@ -249,6 +268,7 @@ class ExpensesManager {
                             </label>
                             <input type="number" class="form-control neumorphic-input" id="expenseAmountUSD"
                                    step="0.01" min="0" placeholder="0.00" onchange="expensesManager.calculateCurrency('USD')">
+                            <small class="text-muted">أدخل بالدولار بشكل مستقل. لن يتم التغيير تلقائياً إلا إذا فعّلت التحويل.</small>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="expenseExchangeRate" class="form-label">
@@ -256,6 +276,10 @@ class ExpensesManager {
                             </label>
                             <input type="number" class="form-control neumorphic-input" id="expenseExchangeRate"
                                    step="0.01" min="0" value="1500" placeholder="1500" onchange="expensesManager.calculateCurrency()">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="enableAutoConversion" onchange="expensesManager.calculateCurrency()">
+                                <label class="form-check-label" for="enableAutoConversion">تفعيل التحويل التلقائي بين الدينار والدولار</label>
+                            </div>
                         </div>
 
                         <!-- البيان والدليل المحاسبي -->
@@ -393,7 +417,7 @@ class ExpensesManager {
                 </div>
                 <div class="card-body">
                     <div id="expensesList">
-                        ${this.renderExpensesList()}
+                        ${this.renderRecentExpenses(StorageManager.getAllData().expenses || [])}
                     </div>
                 </div>
             </div>
@@ -600,10 +624,9 @@ class ExpensesManager {
         return overviewHTML;
     }
 
-    // Render expenses by category (missing function)
-    renderExpensesByCategory() {
-        const data = StorageManager.getAllData();
-        const expenses = data.expenses || [];
+    // Render expenses by category (summary with totals and drilldown)
+    renderExpensesByCategory(data = null) {
+        const expenses = (data?.expenses) || StorageManager.getAllData().expenses || [];
 
         if (expenses.length === 0) {
             return '<p class="text-center text-muted">لا توجد مصروفات لعرضها</p>';
@@ -613,32 +636,53 @@ class ExpensesManager {
         const grouped = {};
         expenses.forEach(expense => {
             const category = expense.category || 'غير مصنف';
-            if (!grouped[category]) {
-                grouped[category] = [];
-            }
+            if (!grouped[category]) grouped[category] = [];
             grouped[category].push(expense);
         });
 
         let html = '<div class="row">';
         Object.keys(grouped).forEach(category => {
             const categoryExpenses = grouped[category];
-            const total = categoryExpenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+            const totals = categoryExpenses.reduce((acc, exp) => {
+                const { iqd, usd } = this.getExpenseAmounts(exp);
+                acc.count += 1;
+                acc.iqd += iqd;
+                acc.usd += usd;
+                return acc;
+            }, { count: 0, iqd: 0, usd: 0 });
+
+            const catEsc = category.replace(/'/g, "\\'");
 
             html += `
-                <div class="col-md-6 mb-3">
-                    <div class="card">
-                        <div class="card-header bg-primary text-white">
-                            <h6 class="mb-0">${category} (${categoryExpenses.length})</h6>
+                <div class="col-lg-4 col-md-6 mb-3">
+                    <div class="card h-100" role="button" onclick="expensesManager.showCategoryDetails('${catEsc}')">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">${category}</h6>
+                            <span class="badge bg-light text-dark">${totals.count}</span>
                         </div>
                         <div class="card-body">
-                            <p class="mb-2"><strong>الإجمالي:</strong> ${this.formatCurrency(total, 'USD')}</p>
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <div class="text-muted small">الإجمالي بالدينار</div>
+                                    <div><strong>${this.formatCurrency(totals.iqd, 'IQD')}</strong></div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="text-muted small">الإجمالي بالدولار</div>
+                                    <div><strong>${this.formatCurrency(totals.usd, 'USD')}</strong></div>
+                                </div>
+                            </div>
+                            <hr>
                             <div class="list-group list-group-flush">
-                                ${categoryExpenses.slice(0, 3).map(exp => `
-                                    <div class="list-group-item">
-                                        <small>${exp.description || 'بدون وصف'}</small>
-                                        <span class="float-end">${this.formatCurrency(exp.amount, exp.currency)}</span>
-                                    </div>
-                                `).join('')}
+                                ${categoryExpenses.slice(0, 3).map(exp => {
+                                    const { iqd, usd } = this.getExpenseAmounts(exp);
+                                    const amountText = usd > 0 ? this.formatCurrency(usd, 'USD') : this.formatCurrency(iqd, 'IQD');
+                                    return `
+                                        <div class="list-group-item d-flex justify-content-between">
+                                            <small>${exp.description || 'بدون وصف'}</small>
+                                            <small class="text-muted">${amountText}</small>
+                                        </div>
+                                    `;
+                                }).join('')}
                                 ${categoryExpenses.length > 3 ? `<div class="list-group-item text-center"><small>و ${categoryExpenses.length - 3} مصروف آخر...</small></div>` : ''}
                             </div>
                         </div>
@@ -649,6 +693,182 @@ class ExpensesManager {
         html += '</div>';
 
         return html;
+    }
+
+    // Helper: normalize expense amounts to separate IQD/USD
+    getExpenseAmounts(expense) {
+        const iqd = (parseFloat(expense.amountIQD) || 0) + ((expense.currency === 'IQD') ? (parseFloat(expense.amount) || 0) : 0);
+        const usd = (parseFloat(expense.amountUSD) || 0) + ((expense.currency === 'USD') ? (parseFloat(expense.amount) || 0) : 0);
+        return { iqd, usd };
+    }
+
+    // Load categories view (simple summary only)
+    loadCategoriesView() {
+        const data = StorageManager.getAllData();
+        const content = `
+            <div class="neumorphic-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="bi bi-tags me-2"></i>فئات المصروفات</h4>
+                </div>
+                <div class="card-body">
+                    ${this.renderExpensesByCategory(data)}
+                </div>
+            </div>
+        `;
+        document.getElementById('expensesContent').innerHTML = content;
+    }
+
+    // (Removed) Filters and chart helpers for categories view
+    // getFilteredExpensesForCategories, applyCategoryFilters, resetCategoryFilters,
+    // renderCategoriesBarChart, exportCategoriesCSV, exportCategoriesJSON were removed as requested.
+
+    // Drilldown: show category details (simple view without filters/export)
+    showCategoryDetails(category) {
+        this.currentCategory = category;
+        const all = StorageManager.getAllData().expenses || [];
+        const filtered = all.filter(e => (e.category || 'غير مصنف') === category);
+
+        if (filtered.length === 0) {
+            document.getElementById('expensesContent').innerHTML = `<div class="neumorphic-card"><div class="card-header"><button class="btn btn-sm btn-secondary me-2" onclick=\"expensesManager.loadCategoriesView()\"><i class=\"bi bi-arrow-right\"></i> رجوع</button> ${category}</div><div class=\"card-body\"><div class=\"alert alert-info\">لا توجد قيود ضمن هذه الفئة</div></div></div>`;
+            return;
+        }
+
+        const totals = filtered.reduce((acc, exp) => {
+            const { iqd, usd } = this.getExpenseAmounts(exp);
+            acc.iqd += iqd; acc.usd += usd; return acc;
+        }, { iqd: 0, usd: 0 });
+
+        const rows = filtered.map(e => {
+            const { iqd, usd } = this.getExpenseAmounts(e);
+            return `
+                <tr>
+                    <td>${this.formatDate(e.date)}</td>
+                    <td>${e.registrationNumber || '-'}</td>
+                    <td>${e.description || '-'}</td>
+                    <td>${iqd ? this.formatCurrency(iqd, 'IQD') : '-'}</td>
+                    <td>${usd ? this.formatCurrency(usd, 'USD') : '-'}</td>
+                    <td>${e.exchangeRate || '-'}</td>
+                    <td>${this.getPaymentMethodText?.(e.paymentMethod) || '-'}</td>
+                    <td>${e.project || '-'}</td>
+                    <td>${e.vendor || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const html = `
+            <div class="neumorphic-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <button class="btn btn-sm btn-secondary me-2" onclick="expensesManager.loadCategoriesView()"><i class="bi bi-arrow-right"></i> رجوع</button>
+                        <strong><i class="bi bi-folder2-open me-2"></i>${category}</strong>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded">
+                                <div class="text-muted small">إجمالي بالدينار</div>
+                                <div class="fs-5">${this.formatCurrency(totals.iqd, 'IQD')}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded text-end">
+                                <div class="text-muted small">إجمالي بالدولار</div>
+                                <div class="fs-5">${this.formatCurrency(totals.usd, 'USD')}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>رقم القيد</th>
+                                    <th>البيان</th>
+                                    <th>المبلغ (د.ع)</th>
+                                    <th>المبلغ ($)</th>
+                                    <th>سعر الصرف</th>
+                                    <th>طريقة الدفع</th>
+                                    <th>المشروع</th>
+                                    <th>المورد</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('expensesContent').innerHTML = html;
+    }
+
+    // Filtering for category details
+    filterCategoryDetails(category) {
+        const all = StorageManager.getAllData().expenses || [];
+        const from = document.getElementById('dfltFrom')?.value;
+        const to = document.getElementById('dfltTo')?.value;
+        const project = (document.getElementById('dfltProject')?.value || '').trim().toLowerCase();
+        const payment = document.getElementById('dfltPayment')?.value || '';
+        return all.filter(e => {
+            if ((e.category || 'غير مصنف') !== category) return false;
+            const d = e.date ? new Date(e.date) : null;
+            if (from && d && d < new Date(from)) return false;
+            if (to && d && d > new Date(to)) return false;
+            if (project && (e.project || '').toLowerCase().indexOf(project) === -1) return false;
+            if (payment && e.paymentMethod !== payment) return false;
+            return true;
+        });
+    }
+
+    applyCategoryDetailFilters() {
+        this.showCategoryDetails(this.currentCategory);
+    }
+
+    resetCategoryDetailFilters() {
+        document.getElementById('dfltFrom').value = '';
+        document.getElementById('dfltTo').value = '';
+        document.getElementById('dfltProject').value = '';
+        document.getElementById('dfltPayment').value = '';
+        this.applyCategoryDetailFilters();
+    }
+
+    // CSV export for one category (details)
+    exportCategoryCSV(category) {
+        const rows = [['التاريخ','رقم القيد','البيان','المبلغ (د.ع)','المبلغ ($)','سعر الصرف','طريقة الدفع','المشروع','المورد']];
+        const data = this.filterCategoryDetails(category);
+        data.forEach(e => {
+            const { iqd, usd } = this.getExpenseAmounts(e);
+            rows.push([
+                this.formatDate(e.date),
+                e.registrationNumber || '-',
+                e.description || '-',
+                iqd || 0,
+                usd || 0,
+                e.exchangeRate || '-',
+                this.getPaymentMethodText?.(e.paymentMethod) || '-',
+                e.project || '-',
+                e.vendor || '-'
+            ]);
+        });
+        const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `category_${category}_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    }
+
+    // Export selected category as JSON
+    exportCategory(category) {
+        const expenses = StorageManager.getAllData().expenses || [];
+        const filtered = expenses.filter(e => (e.category || 'غير مصنف') === category);
+        const blob = new Blob([JSON.stringify({ category, items: filtered }, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `expenses_${category}_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
     }
 
     // Group accounting guide by category
@@ -1680,25 +1900,43 @@ class ExpensesManager {
         return options;
     }
 
-    // Calculate currency conversion
+    // Calculate currency conversion (respects manual independence)
     calculateCurrency(changedCurrency = null) {
-        const amountIQD = parseFloat(document.getElementById('expenseAmountIQD')?.value) || 0;
-        const amountUSD = parseFloat(document.getElementById('expenseAmountUSD')?.value) || 0;
-        const exchangeRate = parseFloat(document.getElementById('expenseExchangeRate')?.value) || 1500;
+        const amountIQDInput = document.getElementById('expenseAmountIQD');
+        const amountUSDInput = document.getElementById('expenseAmountUSD');
+        const rateInput = document.getElementById('expenseExchangeRate');
+        const autoToggle = document.getElementById('enableAutoConversion');
+
+        const amountIQD = parseFloat(amountIQDInput?.value) || 0;
+        const amountUSD = parseFloat(amountUSDInput?.value) || 0;
+        const exchangeRate = parseFloat(rateInput?.value) || 1500;
+        const auto = !!autoToggle?.checked; // convert only when enabled
+
+        if (!auto) {
+            // User wants independent amounts; do nothing.
+            return;
+        }
 
         if (changedCurrency === 'IQD' && amountIQD > 0) {
-            // Convert IQD to USD
-            const usdAmount = amountIQD / exchangeRate;
-            document.getElementById('expenseAmountUSD').value = usdAmount.toFixed(2);
+            // Convert IQD to USD only if USD field is empty
+            if (!amountUSDInput.value) {
+                const usdAmount = amountIQD / exchangeRate;
+                amountUSDInput.value = isFinite(usdAmount) ? usdAmount.toFixed(2) : '';
+            }
         } else if (changedCurrency === 'USD' && amountUSD > 0) {
-            // Convert USD to IQD
-            const iqdAmount = amountUSD * exchangeRate;
-            document.getElementById('expenseAmountIQD').value = Math.round(iqdAmount);
-        } else if (!changedCurrency) {
-            // Exchange rate changed, recalculate based on USD
-            if (amountUSD > 0) {
+            // Convert USD to IQD only if IQD field is empty
+            if (!amountIQDInput.value) {
                 const iqdAmount = amountUSD * exchangeRate;
-                document.getElementById('expenseAmountIQD').value = Math.round(iqdAmount);
+                amountIQDInput.value = isFinite(iqdAmount) ? Math.round(iqdAmount) : '';
+            }
+        } else if (!changedCurrency) {
+            // Exchange rate changed: update the other field only if it's empty
+            if (amountUSD > 0 && !amountIQDInput.value) {
+                const iqdAmount = amountUSD * exchangeRate;
+                amountIQDInput.value = isFinite(iqdAmount) ? Math.round(iqdAmount) : '';
+            } else if (amountIQD > 0 && !amountUSDInput.value) {
+                const usdAmount = amountIQD / exchangeRate;
+                amountUSDInput.value = isFinite(usdAmount) ? usdAmount.toFixed(2) : '';
             }
         }
     }
